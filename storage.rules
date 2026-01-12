@@ -1,0 +1,39 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Function to verify authentication
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Function to verify if user is the owner
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Function to validate image
+    function isValidImage() {
+      return request.resource.size < 5 * 1024 * 1024 && // Max 5MB
+        request.resource.contentType.matches('image/.*');
+    }
+
+    // User profile photo
+    match /users/{userId}/profile.webp {
+      allow write: if isOwner(userId) && isValidImage();
+      allow read: if isAuthenticated();
+    }
+
+    // User wishlist images
+    match /users/{userId}/wishlist/{fileName} {
+      allow write: if isOwner(userId) && isValidImage();
+      allow read: if isAuthenticated();
+    }
+
+    // Block everything else
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

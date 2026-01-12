@@ -1,0 +1,271 @@
+import { useState, useRef, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  useCreateWishlistItem,
+  useUpdateWishlistItem,
+} from "@/hooks/useWishlist";
+import { uploadMultipleImages, deleteMultipleImages } from "@/lib/storage";
+import { ImagePlus, X } from "lucide-react";
+import type { WishlistItem } from "@/types";
+
+const wishlistItemSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  price: z.string().optional(),
+  description: z.string().optional(),
+  link: z.string().url("Invalid URL").optional().or(z.literal("")),
+});
+
+type WishlistItemFormData = z.infer<typeof wishlistItemSchema>;
+
+interface WishlistFormProps {
+  userId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  editItem?: WishlistItem | null;
+}
+
+export function WishlistForm({
+  userId,
+  open,
+  onOpenChange,
+  editItem,
+}: WishlistFormProps) {
+  const [images, setImages] = useState<string[]>([]);
+  const [newImages, setNewImages] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const createMutation = useCreateWishlistItem(userId);
+  const updateMutation = useUpdateWishlistItem();
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<WishlistItemFormData>({
+    resolver: zodResolver(wishlistItemSchema),
+  });
+
+  // Reset form and images when opening the sheet
+  useEffect(() => {
+    if (open) {
+      reset({
+        name: editItem?.name || "",
+        price: editItem?.price?.toString() || "",
+        description: editItem?.description || "",
+        link: editItem?.link || "",
+      });
+      setImages(editItem?.images || []);
+      setNewImages([]);
+    }
+  }, [open, editItem, reset]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length + images.length + newImages.length > 5) {
+      alert("Maximum 5 images");
+      return;
+    }
+
+    // Local image preview
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImages((prev) => [...prev, e.target?.result as string]);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    setNewImages((prev) => [...prev, ...files]);
+  };
+
+  const removeImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
+    // If it's a new image (not existing), also remove from newImages
+    const existingCount = editItem?.images?.length || 0;
+    if (index >= existingCount) {
+      setNewImages((prev) =>
+        prev.filter((_, i) => i !== index - existingCount)
+      );
+    }
+  };
+
+  const onSubmit = async (data: WishlistItemFormData) => {
+    setIsUploading(true);
+
+    try {
+      // Keep only existing images that weren't removed
+      const existingImages = editItem?.images || [];
+      const keptExistingImages = existingImages.filter((img) =>
+        images.includes(img)
+      );
+
+      // Find images that were removed (to delete from storage)
+      const removedImages = existingImages.filter(
+        (img) => !images.includes(img)
+      );
+
+      // Delete removed images from storage
+      if (removedImages.length > 0) {
+        await deleteMultipleImages(removedImages);
+      }
+
+      // Upload new images if any
+      const uploadedUrls =
+        newImages.length > 0
+          ? await uploadMultipleImages(userId, newImages)
+          : [];
+
+      const finalImages = [...keptExistingImages, ...uploadedUrls];
+
+      const itemData = {
+        name: data.name,
+        images: finalImages.length > 0 ? finalImages : [],
+        price: data.price ? parseFloat(data.price) : undefined,
+        description: data.description || undefined,
+        link: data.link || undefined,
+      };
+
+      if (editItem) {
+        await updateMutation.mutateAsync({
+          itemId: editItem.id,
+          data: itemData,
+        });
+      } else {
+        await createMutation.mutateAsync(itemData);
+      }
+
+      handleClose();
+    } catch (error) {
+      console.error("Error saving item:", error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleClose = () => {
+    onOpenChange(false);
+  };
+
+  const isLoading =
+    createMutation.isPending || updateMutation.isPending || isUploading;
+
+  return (
+    <Sheet open={open} onOpenChange={handleClose}>
+      <SheetContent className="overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>{editItem ? "Edit Item" : "Add Item"}</SheetTitle>
+        </SheetHeader>
+
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="flex flex-col gap-4 mt-6"
+        >
+          <Input
+            label="Name *"
+            placeholder="e.g. PlayStation 5"
+            error={errors.name?.message}
+            {...register("name")}
+          />
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-left">Images (max. 5)</label>
+            <div className="flex flex-wrap gap-2">
+              {images.map((img, index) => (
+                <div
+                  key={index}
+                  className="relative w-20 h-20 rounded-xl overflow-hidden"
+                >
+                  <img
+                    src={img}
+                    alt={`Image ${index + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(index)}
+                    className="absolute top-1 right-1 bg-black/50 rounded-full p-1"
+                  >
+                    <X className="w-3 h-3 text-white" />
+                  </button>
+                </div>
+              ))}
+
+              {images.length < 5 && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-20 h-20 rounded-xl border-2 border-dashed border-muted-foreground/30 flex items-center justify-center hover:border-primary transition-colors"
+                >
+                  <ImagePlus className="w-6 h-6 text-muted-foreground" />
+                </button>
+              )}
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+          </div>
+
+          <Input
+            label="Price (optional)"
+            type="number"
+            placeholder="e.g. 499"
+            {...register("price")}
+          />
+
+          <Input
+            label="Description (optional)"
+            placeholder="e.g. Black color, digital version"
+            {...register("description")}
+          />
+
+          <Input
+            label="Link (optional)"
+            type="url"
+            placeholder="https://..."
+            error={errors.link?.message}
+            {...register("link")}
+          />
+
+          <div className="flex gap-2 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={handleClose}
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" className="flex-1" disabled={isLoading}>
+              {isLoading ? (
+                <Spinner size="sm" className="text-white" />
+              ) : editItem ? (
+                "Save"
+              ) : (
+                "Add"
+              )}
+            </Button>
+          </div>
+        </form>
+      </SheetContent>
+    </Sheet>
+  );
+}

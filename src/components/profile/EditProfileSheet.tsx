@@ -1,0 +1,132 @@
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
+import { useUpdateUser } from "@/hooks/useUser";
+import type { User } from "@/types";
+import { format } from "date-fns";
+
+const editProfileSchema = z.object({
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  birthday: z.string().optional(),
+});
+
+type EditProfileFormData = z.infer<typeof editProfileSchema>;
+
+interface EditProfileSheetProps {
+  user: User;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function EditProfileSheet({
+  user,
+  open,
+  onOpenChange,
+}: EditProfileSheetProps) {
+  const updateUser = useUpdateUser();
+
+  const birthdayDate = user.birthday?.toDate();
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<EditProfileFormData>({
+    resolver: zodResolver(editProfileSchema),
+    defaultValues: {
+      firstName: user.firstName || "",
+      lastName: user.lastName || "",
+      birthday: birthdayDate ? format(birthdayDate, "yyyy-MM-dd") : "",
+    },
+  });
+
+  const onSubmit = async (data: EditProfileFormData) => {
+    await updateUser.mutateAsync({
+      firstName: data.firstName,
+      lastName: data.lastName,
+      birthday: data.birthday ? new Date(data.birthday) : null,
+    });
+    onOpenChange(false);
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>Edit Profile</SheetTitle>
+        </SheetHeader>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-6">
+          <Input
+            label="Email"
+            type="email"
+            value={user.email}
+            disabled
+            className="opacity-50"
+            hint="Email cannot be changed"
+          />
+
+          <Input
+            label="Username"
+            value={user.username}
+            disabled
+            className="opacity-50"
+            hint="Username cannot be changed"
+          />
+
+          <Input
+            label="First Name"
+            placeholder="Your first name"
+            error={errors.firstName?.message}
+            {...register("firstName")}
+          />
+
+          <Input
+            label="Last Name"
+            placeholder="Your last name"
+            error={errors.lastName?.message}
+            {...register("lastName")}
+          />
+
+          <Input
+            label="Birthday"
+            type="date"
+            {...register("birthday")}
+          />
+
+          <div className="flex gap-2 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              className="flex-1"
+              disabled={updateUser.isPending}
+            >
+              {updateUser.isPending ? (
+                <Spinner size="sm" className="text-white" />
+              ) : (
+                "Save"
+              )}
+            </Button>
+          </div>
+        </form>
+      </SheetContent>
+    </Sheet>
+  );
+}
