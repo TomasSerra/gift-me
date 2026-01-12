@@ -21,14 +21,16 @@ service firebase.storage {
 
     // User profile photo
     match /users/{userId}/profile.webp {
-      allow write: if isOwner(userId) && isValidImage();
       allow read: if isAuthenticated();
+      allow create, update: if isOwner(userId) && isValidImage();
+      allow delete: if isOwner(userId);
     }
 
     // User wishlist images
     match /users/{userId}/wishlist/{fileName} {
-      allow write: if isOwner(userId) && isValidImage();
       allow read: if isAuthenticated();
+      allow create, update: if isOwner(userId) && isValidImage();
+      allow delete: if isOwner(userId);
     }
 
     // Block everything else

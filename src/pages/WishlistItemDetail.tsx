@@ -1,9 +1,13 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useSwipeable } from "react-swipeable";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDeleteWishlistItem } from "@/hooks/useWishlist";
+import { useUserById } from "@/hooks/useUserById";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/queryKeys";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,54 +23,74 @@ import {
 import { WishlistForm } from "@/components/wishlist/WishlistForm";
 import { ArrowLeft, ExternalLink, ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { WishlistItem, User } from "@/types";
+import type { WishlistItem } from "@/types";
+
+async function fetchWishlistItem(itemId: string): Promise<WishlistItem | null> {
+  const itemDoc = await getDoc(doc(db, "wishlistItems", itemId));
+  if (!itemDoc.exists()) return null;
+  return { id: itemDoc.id, ...itemDoc.data() } as WishlistItem;
+}
 
 export function WishlistItemDetailPage() {
   const { itemId } = useParams<{ itemId: string }>();
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const deleteMutation = useDeleteWishlistItem();
-  const [item, setItem] = useState<WishlistItem | null>(null);
-  const [owner, setOwner] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
   const [editFormOpen, setEditFormOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
+  // Try to get cached item first
+  const cachedItem = queryClient.getQueryData<WishlistItem>(
+    queryKeys.wishlist.item(itemId || "")
+  );
+
+  const { data: item, isLoading: loading, refetch } = useQuery({
+    queryKey: queryKeys.wishlist.item(itemId || ""),
+    queryFn: () => fetchWishlistItem(itemId!),
+    enabled: !!itemId,
+    initialData: cachedItem,
+    staleTime: cachedItem ? 1000 * 60 * 5 : 0, // Use cache for 5 min if available
+  });
+
+  // Fetch owner data using cached hook
+  const { data: owner } = useUserById(item?.ownerId);
+
   const isOwner = currentUser?.id === item?.ownerId;
 
-  const fetchItem = async () => {
-    if (!itemId) return;
+  const images = item?.images || [];
+  const hasMultipleImages = images.length > 1;
+  const currentImage = images[currentImageIndex];
+  const isImageLoading = images.length > 0 && currentImage && !loadedImages.has(currentImage);
 
-    try {
-      const itemDoc = await getDoc(doc(db, "wishlistItems", itemId));
-      if (itemDoc.exists()) {
-        const itemData = { id: itemDoc.id, ...itemDoc.data() } as WishlistItem;
-        setItem(itemData);
-        setCurrentImageIndex(0);
-
-        // Fetch owner data
-        const ownerDoc = await getDoc(doc(db, "users", itemData.ownerId));
-        if (ownerDoc.exists()) {
-          setOwner({ id: ownerDoc.id, ...ownerDoc.data() } as User);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching item:", error);
-    } finally {
-      setLoading(false);
+  const handleImageLoad = () => {
+    if (currentImage) {
+      setLoadedImages((prev) => new Set(prev).add(currentImage));
     }
   };
 
-  useEffect(() => {
-    fetchItem();
-  }, [itemId]);
+  const goToPrevious = () => {
+    setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+  };
+
+  const goToNext = () => {
+    setCurrentImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  };
+
+  const swipeHandlers = useSwipeable({
+    onSwipedLeft: goToNext,
+    onSwipedRight: goToPrevious,
+    preventScrollOnSwipe: true,
+    trackMouse: false,
+  });
 
   const handleEditFormClose = (open: boolean) => {
     setEditFormOpen(open);
     if (!open) {
       // Refetch item data after edit form closes
-      fetchItem();
+      refetch();
     }
   };
 
@@ -116,7 +140,7 @@ export function WishlistItemDetailPage() {
     </div>
   );
 
-  if (loading) {
+  if (loading && !cachedItem) {
     return (
       <PageContainer header={header} noPadding>
         <Skeleton className="w-full aspect-square" />
@@ -142,27 +166,18 @@ export function WishlistItemDetailPage() {
     );
   }
 
-  const images = item.images || [];
-  const hasMultipleImages = images.length > 1;
-
-  const goToPrevious = () => {
-    setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
-  };
-
-  const goToNext = () => {
-    setCurrentImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
-  };
-
   return (
     <PageContainer header={header} noPadding>
       {/* Image carousel */}
       {images.length > 0 ? (
-        <div className="relative bg-muted">
-          <div className="aspect-square">
+        <div {...swipeHandlers} className="relative bg-muted">
+          <div className="aspect-square relative">
+            {isImageLoading && <Skeleton className="absolute inset-0 z-10" />}
             <img
-              src={images[currentImageIndex]}
+              src={currentImage}
               alt={`${item.name} - Image ${currentImageIndex + 1}`}
-              className="w-full h-full object-contain"
+              className={cn("w-full h-full object-contain", isImageLoading && "opacity-0")}
+              onLoad={handleImageLoad}
             />
           </div>
 

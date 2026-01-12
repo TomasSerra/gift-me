@@ -62,7 +62,7 @@ export function ProfileHeader({
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-1.5 shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50"
+              className="absolute bottom-0 right-0 bg-white text-gray-700 rounded-full p-1.5 shadow-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
               <Pencil className="w-4 h-4" />
             </button>

@@ -30,10 +30,8 @@ service cloud.firestore {
     }
 
     match /wishlistItems/{itemId} {
-      allow read: if isAuthenticated() && (
-        isOwner(resource.data.ownerId) ||
-        isFriend(resource.data.ownerId)
-      );
+      // Public read access for sharing wishlists
+      allow read: if true;
       allow create: if isAuthenticated() &&
         request.resource.data.ownerId == request.auth.uid;
       allow update, delete: if isAuthenticated() &&

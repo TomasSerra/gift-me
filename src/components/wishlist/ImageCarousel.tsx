@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 interface ImageCarouselProps {
@@ -9,6 +10,14 @@ interface ImageCarouselProps {
 
 export function ImageCarousel({ images, compact = false }: ImageCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
+
+  const currentImage = images[currentIndex];
+  const isLoading = !loadedImages.has(currentImage);
+
+  const handleImageLoad = () => {
+    setLoadedImages((prev) => new Set(prev).add(currentImage));
+  };
 
   if (images.length === 0) return null;
 
@@ -24,10 +33,12 @@ export function ImageCarousel({ images, compact = false }: ImageCarouselProps) {
 
   return (
     <div className={cn("relative overflow-hidden", compact ? "h-full" : "h-48")}>
+      {isLoading && <Skeleton className="absolute inset-0 z-10" />}
       <img
-        src={images[currentIndex]}
+        src={currentImage}
         alt={`Imagen ${currentIndex + 1}`}
-        className="w-full h-full object-cover"
+        className={cn("w-full h-full object-cover", isLoading && "opacity-0")}
+        onLoad={handleImageLoad}
       />
 
       {images.length > 1 && (

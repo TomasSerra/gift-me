@@ -5,6 +5,7 @@ import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { EditProfileSheet } from "@/components/profile/EditProfileSheet";
 import { WishlistList } from "@/components/wishlist/WishlistList";
 import { Button } from "@/components/ui/button";
+import { ShareButton } from "@/components/ui/share-button";
 import { LogOut } from "lucide-react";
 
 export function ProfilePage() {
@@ -12,6 +13,11 @@ export function ProfilePage() {
   const [editOpen, setEditOpen] = useState(false);
 
   if (!user) return null;
+
+  const shareUrl = `${window.location.origin}/u/${user.username}`;
+  const shareTitle = user.firstName
+    ? `${user.firstName}'s Wishlist`
+    : `${user.username}'s Wishlist`;
 
   const header = (
     <div className="flex items-center justify-between p-4">
@@ -24,6 +30,11 @@ export function ProfilePage() {
 
   return (
     <PageContainer header={header} noPadding>
+      {/* Share button - floating below header */}
+      <div className="absolute top-24 right-4 z-10">
+        <ShareButton url={shareUrl} title={shareTitle} variant="primary" />
+      </div>
+
       <ProfileHeader user={user} onEdit={() => setEditOpen(true)} />
 
       <div className="px-4">

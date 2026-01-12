@@ -10,8 +10,15 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverItem,
+} from "@/components/ui/popover";
+import { ShareButton } from "@/components/ui/share-button";
 import { useDeleteWishlistItem } from "@/hooks/useWishlist";
-import { Pencil, Trash2 } from "lucide-react";
+import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import type { WishlistItem } from "@/types";
 
 interface WishlistGridItemProps {
@@ -45,6 +52,8 @@ export function WishlistGridItem({
     }).format(price);
   };
 
+  const shareUrl = `${window.location.origin}/item/${item.id}`;
+
   return (
     <>
       <Card
@@ -67,35 +76,44 @@ export function WishlistGridItem({
 
           {/* Multiple images indicator */}
           {item.images && item.images.length > 1 && (
-            <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded">
+            <div className="absolute bottom-2 right-2 bg-white/70 text-black text-xs font-medium px-1.5 py-0.5 rounded-full">
               +{item.images.length - 1}
             </div>
           )}
 
-          {/* Owner actions overlay */}
-          {isOwner && (
-            <div
-              className="absolute top-2 left-2 flex gap-1"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                onClick={onEdit}
-                className="bg-black/60 text-white rounded-full p-1.5 hover:bg-black/80 transition-colors"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => setDeleteDialogOpen(true)}
-                className="bg-black/60 text-white rounded-full p-1.5 hover:bg-red-600 transition-colors"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
+          {/* Actions overlay */}
+          <div
+            className="absolute top-2 left-2 flex gap-1"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ShareButton url={shareUrl} title={item.name} />
+          </div>
+          <div className="absolute top-2 right-2">
+            {isOwner && (
+              <Popover>
+                <PopoverTrigger>
+                  <MoreVertical className="w-5 h-5" />
+                </PopoverTrigger>
+                <PopoverContent>
+                  <PopoverItem onClick={onEdit}>
+                    <Pencil className="w-4 h-4" />
+                    Edit
+                  </PopoverItem>
+                  <PopoverItem
+                    variant="destructive"
+                    onClick={() => setDeleteDialogOpen(true)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete
+                  </PopoverItem>
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
         </div>
 
         {/* Info */}
-        <div className="p-2">
+        <div className="p-3">
           <h3 className="font-medium text-sm truncate">{item.name}</h3>
           {item.description && (
             <p className="text-xs text-muted-foreground line-clamp-2">

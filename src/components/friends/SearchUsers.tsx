@@ -77,7 +77,7 @@ export function SearchUsers({ autoFocus = false }: SearchUsersProps) {
             onClick={(e) => {
               e.stopPropagation();
               if (user.requestId) {
-                cancelRequest.mutate(user.requestId);
+                cancelRequest.mutate({ requestId: user.requestId, toUserId: user.id });
                 setPendingSentIds((prev) => {
                   const next = new Set(prev);
                   next.delete(user.id);
@@ -116,7 +116,7 @@ export function SearchUsers({ autoFocus = false }: SearchUsersProps) {
               onClick={(e) => {
                 e.stopPropagation();
                 if (user.requestId) {
-                  cancelRequest.mutate(user.requestId);
+                  cancelRequest.mutate({ requestId: user.requestId, toUserId: user.id });
                 }
               }}
             >

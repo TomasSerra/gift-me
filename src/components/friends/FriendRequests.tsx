@@ -39,11 +39,11 @@ export function FriendRequests() {
     );
   };
 
-  const handleReject = (requestId: string) => {
+  const handleReject = (requestId: string, fromUserId: string) => {
     // Optimistically remove from list
     setHandledRequestIds((prev) => new Set(prev).add(requestId));
 
-    rejectRequest.mutate(requestId, {
+    rejectRequest.mutate({ requestId, fromUserId }, {
       onError: () => {
         // Revert on error
         setHandledRequestIds((prev) => {
@@ -119,7 +119,7 @@ export function FriendRequests() {
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => handleReject(request.id)}
+                    onClick={() => handleReject(request.id, request.fromUserId)}
                   >
                     <X className="w-4 h-4" />
                   </Button>

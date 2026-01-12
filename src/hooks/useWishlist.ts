@@ -18,6 +18,7 @@ import { db } from "@/lib/firebase";
 import { deleteMultipleImages } from "@/lib/storage";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { queryKeys } from "@/lib/queryKeys";
 import type { WishlistItem } from "@/types";
 import { useEffect, useState } from "react";
 
@@ -34,8 +35,15 @@ interface UpdateWishlistItemData extends Partial<CreateWishlistItemData> {
 }
 
 export function useWishlist(userId: string) {
-  const [items, setItems] = useState<WishlistItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  // Check for cached data to avoid showing loader on re-mount
+  const cachedItems = queryClient.getQueryData<WishlistItem[]>(
+    queryKeys.wishlist.user(userId)
+  );
+
+  const [items, setItems] = useState<WishlistItem[]>(cachedItems || []);
+  const [loading, setLoading] = useState(!cachedItems);
 
   useEffect(() => {
     const q = query(
@@ -51,10 +59,18 @@ export function useWishlist(userId: string) {
       })) as WishlistItem[];
       setItems(newItems);
       setLoading(false);
+
+      // Update React Query cache
+      queryClient.setQueryData(queryKeys.wishlist.user(userId), newItems);
+
+      // Cache individual items for detail page
+      newItems.forEach((item) => {
+        queryClient.setQueryData(queryKeys.wishlist.item(item.id), item);
+      });
     });
 
     return () => unsubscribe();
-  }, [userId]);
+  }, [userId, queryClient]);
 
   return { items, loading };
 }
@@ -99,7 +115,8 @@ export function useCreateWishlistItem(userId: string) {
     },
     onSuccess: () => {
       addToast("Item added to your wishlist", "success");
-      queryClient.invalidateQueries({ queryKey: ["wishlist", userId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.user(userId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.activity.feed(userId) });
     },
     onError: () => {
       addToast("Error adding item", "error");
@@ -126,9 +143,9 @@ export function useUpdateWishlistItem() {
 
       await updateDoc(doc(db, "wishlistItems", itemId), updateData);
     },
-    onSuccess: () => {
+    onSuccess: (_, { itemId }) => {
       addToast("Item updated", "success");
-      queryClient.invalidateQueries({ queryKey: ["wishlist"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.item(itemId) });
     },
     onError: () => {
       addToast("Error updating item", "error");
@@ -139,7 +156,6 @@ export function useUpdateWishlistItem() {
 export function useDeleteWishlistItem() {
   const { addToast } = useToast();
   const { user } = useAuth();
-  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (itemId: string) => {
@@ -186,7 +202,7 @@ export function useDeleteWishlistItem() {
     },
     onSuccess: () => {
       addToast("Item deleted", "success");
-      queryClient.invalidateQueries({ queryKey: ["wishlist"] });
+      // Cache is updated via onSnapshot
     },
     onError: () => {
       addToast("Error deleting item", "error");
@@ -194,9 +210,7 @@ export function useDeleteWishlistItem() {
   });
 }
 
-export function useReorderWishlist(userId: string) {
-  const queryClient = useQueryClient();
-
+export function useReorderWishlist(_userId: string) {
   return useMutation({
     mutationFn: async (items: WishlistItem[]) => {
       const batch = writeBatch(db);
@@ -209,7 +223,7 @@ export function useReorderWishlist(userId: string) {
       await batch.commit();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["wishlist", userId] });
+      // Cache is updated via onSnapshot
     },
   });
 }

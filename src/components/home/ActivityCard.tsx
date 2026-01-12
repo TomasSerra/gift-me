@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useSwipeable } from "react-swipeable";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatRelativeTime } from "@/lib/utils";
 import type { ActivityWithUser } from "@/hooks/useActivityFeed";
 import { useNavigate } from "react-router-dom";
@@ -16,6 +18,7 @@ export function ActivityCard({ activity }: ActivityCardProps) {
   const navigate = useNavigate();
   const createdAt = activity.createdAt?.toDate() || new Date();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
 
   // Support both new itemImages array and legacy itemImage field
   const images = activity.itemImages?.length
@@ -26,6 +29,13 @@ export function ActivityCard({ activity }: ActivityCardProps) {
   const hasImages = images.length > 0;
   const hasMultipleImages = images.length > 1;
 
+  const currentImage = images[currentImageIndex];
+  const isImageLoading = hasImages && !loadedImages.has(currentImage);
+
+  const handleImageLoad = () => {
+    setLoadedImages((prev) => new Set(prev).add(currentImage));
+  };
+
   const goToPrevious = (e: React.MouseEvent) => {
     e.stopPropagation();
     setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
@@ -35,6 +45,17 @@ export function ActivityCard({ activity }: ActivityCardProps) {
     e.stopPropagation();
     setCurrentImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
   };
+
+  const swipeHandlers = useSwipeable({
+    onSwipedLeft: () => setCurrentImageIndex((prev) =>
+      prev === images.length - 1 ? 0 : prev + 1
+    ),
+    onSwipedRight: () => setCurrentImageIndex((prev) =>
+      prev === 0 ? images.length - 1 : prev - 1
+    ),
+    preventScrollOnSwipe: true,
+    trackMouse: false,
+  });
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -75,14 +96,17 @@ export function ActivityCard({ activity }: ActivityCardProps) {
       {/* Image carousel */}
       {hasImages ? (
         <div
+          {...swipeHandlers}
           className="relative bg-muted cursor-pointer"
           onClick={handleItemClick}
         >
-          <div className="aspect-square">
+          <div className="aspect-square relative">
+            {isImageLoading && <Skeleton className="absolute inset-0 z-10" />}
             <img
-              src={images[currentImageIndex]}
+              src={currentImage}
               alt={activity.itemName}
-              className="w-full h-full object-cover"
+              className={cn("w-full h-full object-cover", isImageLoading && "opacity-0")}
+              onLoad={handleImageLoad}
             />
           </div>
 

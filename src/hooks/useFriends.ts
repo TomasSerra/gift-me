@@ -11,28 +11,36 @@ import {
   setDoc,
   serverTimestamp,
   onSnapshot,
-  getDoc,
   or,
+  limit,
 } from "firebase/firestore";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/toast";
+import { queryKeys } from "@/lib/queryKeys";
+import { fetchUsersBatch, fetchUser } from "./useUserById";
+import { fetchFriendshipStatus } from "./useFriendshipStatus";
 import type { User, FriendRequest, Friendship, UserWithFriendship } from "@/types";
 
 export function useFriends() {
   const { user } = useAuth();
-  const [friends, setFriends] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  // Check for cached data to avoid showing loader on re-mount
+  const cachedFriends = queryClient.getQueryData<User[]>(
+    queryKeys.friends.all(user?.id || "")
+  );
+
+  const [friends, setFriends] = useState<User[]>(cachedFriends || []);
+  const [loading, setLoading] = useState(!cachedFriends);
 
   useEffect(() => {
     if (!user) return;
 
     const q = query(
       collection(db, "friendships"),
-      or(
-        where("users", "array-contains", user.id)
-      )
+      or(where("users", "array-contains", user.id))
     );
 
     const unsubscribe = onSnapshot(q, async (snapshot) => {
@@ -47,31 +55,42 @@ export function useFriends() {
         return;
       }
 
-      // Fetch user data for each friend
-      const friendsData = await Promise.all(
-        friendIds.map(async (id) => {
-          const userDoc = await getDoc(doc(db, "users", id));
-          if (userDoc.exists()) {
-            return { id: userDoc.id, ...userDoc.data() } as User;
-          }
-          return null;
-        })
-      );
+      // Batch fetch all friends
+      const usersMap = await fetchUsersBatch(friendIds);
 
-      setFriends(friendsData.filter((f): f is User => f !== null));
+      // Populate cache for each user
+      usersMap.forEach((userData, id) => {
+        queryClient.setQueryData(queryKeys.users.detail(id), userData);
+      });
+
+      const friendsData = friendIds
+        .map((id) => usersMap.get(id))
+        .filter((f): f is User => f !== undefined);
+
+      setFriends(friendsData);
       setLoading(false);
+
+      // Update cache for next mount
+      queryClient.setQueryData(queryKeys.friends.all(user.id), friendsData);
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, queryClient]);
 
   return { friends, loading };
 }
 
 export function useFriendRequests() {
   const { user } = useAuth();
-  const [requests, setRequests] = useState<(FriendRequest & { fromUser: User })[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  // Check for cached data to avoid showing loader on re-mount
+  const cachedRequests = queryClient.getQueryData<(FriendRequest & { fromUser: User })[]>(
+    queryKeys.friends.requests(user?.id || "")
+  );
+
+  const [requests, setRequests] = useState<(FriendRequest & { fromUser: User })[]>(cachedRequests || []);
+  const [loading, setLoading] = useState(!cachedRequests);
 
   useEffect(() => {
     if (!user) return;
@@ -83,34 +102,43 @@ export function useFriendRequests() {
     );
 
     const unsubscribe = onSnapshot(q, async (snapshot) => {
-      const requestsData = await Promise.all(
-        snapshot.docs.map(async (requestDoc) => {
-          const data = requestDoc.data() as FriendRequest;
-          const userDoc = await getDoc(doc(db, "users", data.fromUserId));
-          const fromUser = userDoc.exists()
-            ? ({ id: userDoc.id, ...userDoc.data() } as User)
-            : null;
+      if (snapshot.empty) {
+        setRequests([]);
+        setLoading(false);
+        return;
+      }
 
+      const requestDocs = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as (FriendRequest & { id: string })[];
+
+      // Batch fetch all users who sent requests
+      const userIds = requestDocs.map((r) => r.fromUserId);
+      const usersMap = await fetchUsersBatch(userIds);
+
+      // Populate cache for each user
+      usersMap.forEach((userData, id) => {
+        queryClient.setQueryData(queryKeys.users.detail(id), userData);
+      });
+
+      const requestsWithUsers = requestDocs
+        .map((request) => {
+          const fromUser = usersMap.get(request.fromUserId);
           if (!fromUser) return null;
-
-          return {
-            ...data,
-            id: requestDoc.id,
-            fromUser,
-          };
+          return { ...request, fromUser };
         })
-      );
+        .filter((r): r is FriendRequest & { fromUser: User } => r !== null);
 
-      setRequests(
-        requestsData.filter(
-          (r): r is FriendRequest & { fromUser: User } => r !== null
-        )
-      );
+      setRequests(requestsWithUsers);
       setLoading(false);
+
+      // Update cache for next mount
+      queryClient.setQueryData(queryKeys.friends.requests(user.id), requestsWithUsers);
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, queryClient]);
 
   return { requests, loading };
 }
@@ -131,9 +159,9 @@ export function useSearchUsers() {
     try {
       const searchLower = searchTerm.toLowerCase();
 
-      // Search by username
+      // Search with limit
       const usersRef = collection(db, "users");
-      const snapshot = await getDocs(usersRef);
+      const snapshot = await getDocs(query(usersRef, limit(50)));
 
       const matchedUsers = snapshot.docs
         .filter((doc) => {
@@ -149,60 +177,18 @@ export function useSearchUsers() {
               lastName.includes(searchLower))
           );
         })
+        .slice(0, 20) // Limit results
         .map((doc) => ({ id: doc.id, ...doc.data() } as User));
 
-      // Check friendship status for each user
+      // Fetch friendship status for each user (uses cache if available)
       const usersWithStatus = await Promise.all(
         matchedUsers.map(async (matchedUser) => {
-          // Check if already friends
-          const friendshipQuery = query(
-            collection(db, "friendships"),
-            where("users", "array-contains", user.id)
-          );
-          const friendships = await getDocs(friendshipQuery);
-          const isFriend = friendships.docs.some((doc) => {
-            const data = doc.data() as Friendship;
-            return data.users.includes(matchedUser.id);
-          });
-
-          if (isFriend) {
-            return { ...matchedUser, friendshipStatus: "friends" as const };
-          }
-
-          // Verificar solicitudes pendientes
-          const sentRequestQuery = query(
-            collection(db, "friendRequests"),
-            where("fromUserId", "==", user.id),
-            where("toUserId", "==", matchedUser.id),
-            where("status", "==", "pending")
-          );
-          const sentRequests = await getDocs(sentRequestQuery);
-
-          if (!sentRequests.empty) {
-            return {
-              ...matchedUser,
-              friendshipStatus: "pending_sent" as const,
-              requestId: sentRequests.docs[0].id,
-            };
-          }
-
-          const receivedRequestQuery = query(
-            collection(db, "friendRequests"),
-            where("fromUserId", "==", matchedUser.id),
-            where("toUserId", "==", user.id),
-            where("status", "==", "pending")
-          );
-          const receivedRequests = await getDocs(receivedRequestQuery);
-
-          if (!receivedRequests.empty) {
-            return {
-              ...matchedUser,
-              friendshipStatus: "pending_received" as const,
-              requestId: receivedRequests.docs[0].id,
-            };
-          }
-
-          return { ...matchedUser, friendshipStatus: "none" as const };
+          const statusResult = await fetchFriendshipStatus(user.id, matchedUser.id);
+          return {
+            ...matchedUser,
+            friendshipStatus: statusResult.status,
+            requestId: statusResult.requestId,
+          };
         })
       );
 
@@ -220,6 +206,7 @@ export function useSearchUsers() {
 export function useSendFriendRequest() {
   const { user } = useAuth();
   const { addToast } = useToast();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (toUserId: string) => {
@@ -232,8 +219,11 @@ export function useSendFriendRequest() {
         createdAt: serverTimestamp(),
       });
     },
-    onSuccess: () => {
+    onSuccess: (_, toUserId) => {
       addToast("Friend request sent", "success");
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.friendshipStatus(user!.id, toUserId),
+      });
     },
     onError: () => {
       addToast("Error sending request", "error");
@@ -244,6 +234,7 @@ export function useSendFriendRequest() {
 export function useAcceptFriendRequest() {
   const { user } = useAuth();
   const { addToast } = useToast();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({
@@ -260,16 +251,27 @@ export function useAcceptFriendRequest() {
         status: "accepted",
       });
 
-      // Create friendship with predictable ID for security rules
+      // Create friendship with predictable ID
       const sortedIds = [user.id, fromUserId].sort() as [string, string];
       const friendshipId = `${sortedIds[0]}_${sortedIds[1]}`;
       await setDoc(doc(db, "friendships", friendshipId), {
         users: sortedIds,
         createdAt: serverTimestamp(),
       });
+
+      return fromUserId;
     },
-    onSuccess: () => {
+    onSuccess: (fromUserId) => {
       addToast("Request accepted", "success");
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.friends.all(user!.id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.friends.requests(user!.id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.friendshipStatus(user!.id, fromUserId),
+      });
     },
     onError: () => {
       addToast("Error accepting request", "error");
@@ -279,15 +281,24 @@ export function useAcceptFriendRequest() {
 
 export function useRejectFriendRequest() {
   const { addToast } = useToast();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (requestId: string) => {
+    mutationFn: async ({ requestId, fromUserId }: { requestId: string; fromUserId: string }) => {
       await updateDoc(doc(db, "friendRequests", requestId), {
         status: "rejected",
       });
+      return fromUserId;
     },
-    onSuccess: () => {
+    onSuccess: (fromUserId) => {
       addToast("Request rejected", "info");
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.friends.requests(user!.id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.friendshipStatus(user!.id, fromUserId),
+      });
     },
     onError: () => {
       addToast("Error rejecting request", "error");
@@ -297,13 +308,19 @@ export function useRejectFriendRequest() {
 
 export function useCancelFriendRequest() {
   const { addToast } = useToast();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (requestId: string) => {
+    mutationFn: async ({ requestId, toUserId }: { requestId: string; toUserId: string }) => {
       await deleteDoc(doc(db, "friendRequests", requestId));
+      return toUserId;
     },
-    onSuccess: () => {
+    onSuccess: (toUserId) => {
       addToast("Request cancelled", "info");
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.friendshipStatus(user!.id, toUserId),
+      });
     },
     onError: () => {
       addToast("Error cancelling request", "error");
@@ -314,6 +331,7 @@ export function useCancelFriendRequest() {
 export function useRemoveFriend() {
   const { user } = useAuth();
   const { addToast } = useToast();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (friendId: string) => {
@@ -323,9 +341,16 @@ export function useRemoveFriend() {
       const sortedIds = [user.id, friendId].sort();
       const friendshipId = `${sortedIds[0]}_${sortedIds[1]}`;
       await deleteDoc(doc(db, "friendships", friendshipId));
+      return friendId;
     },
-    onSuccess: () => {
+    onSuccess: (friendId) => {
       addToast("Friend removed", "info");
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.friends.all(user!.id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.friendshipStatus(user!.id, friendId),
+      });
     },
     onError: () => {
       addToast("Error removing friend", "error");
@@ -335,81 +360,26 @@ export function useRemoveFriend() {
 
 export function useUserProfile(userId: string) {
   const { user: currentUser } = useAuth();
-  const [userData, setUserData] = useState<UserWithFriendship | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!currentUser || !userId) return;
+  return useQuery({
+    queryKey: [...queryKeys.users.detail(userId), "profile"],
+    queryFn: async (): Promise<UserWithFriendship | null> => {
+      if (!currentUser) return null;
 
-    const fetchUser = async () => {
-      try {
-        const userDoc = await getDoc(doc(db, "users", userId));
-        if (!userDoc.exists()) {
-          setUserData(null);
-          setLoading(false);
-          return;
-        }
+      const userData = await fetchUser(userId);
+      if (!userData) return null;
 
-        const userData = { id: userDoc.id, ...userDoc.data() } as User;
+      const statusResult = await fetchFriendshipStatus(currentUser.id, userId);
 
-        // Check friendship status
-        const friendshipQuery = query(
-          collection(db, "friendships"),
-          where("users", "array-contains", currentUser.id)
-        );
-        const friendships = await getDocs(friendshipQuery);
-        const isFriend = friendships.docs.some((doc) => {
-          const data = doc.data() as Friendship;
-          return data.users.includes(userId);
-        });
-
-        if (isFriend) {
-          setUserData({ ...userData, friendshipStatus: "friends" });
-        } else {
-          // Check pending requests
-          const sentRequestQuery = query(
-            collection(db, "friendRequests"),
-            where("fromUserId", "==", currentUser.id),
-            where("toUserId", "==", userId),
-            where("status", "==", "pending")
-          );
-          const sentRequests = await getDocs(sentRequestQuery);
-
-          if (!sentRequests.empty) {
-            setUserData({
-              ...userData,
-              friendshipStatus: "pending_sent",
-              requestId: sentRequests.docs[0].id,
-            });
-          } else {
-            const receivedRequestQuery = query(
-              collection(db, "friendRequests"),
-              where("fromUserId", "==", userId),
-              where("toUserId", "==", currentUser.id),
-              where("status", "==", "pending")
-            );
-            const receivedRequests = await getDocs(receivedRequestQuery);
-
-            if (!receivedRequests.empty) {
-              setUserData({
-                ...userData,
-                friendshipStatus: "pending_received",
-                requestId: receivedRequests.docs[0].id,
-              });
-            } else {
-              setUserData({ ...userData, friendshipStatus: "none" });
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching user:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUser();
-  }, [currentUser, userId]);
-
-  return { user: userData, loading };
+      return {
+        ...userData,
+        friendshipStatus: statusResult.status,
+        requestId: statusResult.requestId,
+      };
+    },
+    enabled: !!currentUser && !!userId,
+    // Always refetch for friend profiles (fresh data)
+    staleTime: 0,
+    gcTime: 0,
+  });
 }

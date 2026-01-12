@@ -7,6 +7,7 @@ import { ProfilePage } from "@/pages/Profile";
 import { FriendsPage } from "@/pages/Friends";
 import { FriendProfilePage } from "@/pages/FriendProfile";
 import { WishlistItemDetailPage } from "@/pages/WishlistItemDetail";
+import { PublicProfilePage } from "@/pages/PublicProfile";
 import { Spinner } from "@/components/ui/spinner";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -100,9 +101,7 @@ export default function App() {
           path="/friends/:userId"
           element={
             <ProtectedRoute>
-              <AppLayout>
-                <FriendProfilePage />
-              </AppLayout>
+              <FriendProfilePage />
             </ProtectedRoute>
           }
         />
@@ -110,12 +109,11 @@ export default function App() {
           path="/item/:itemId"
           element={
             <ProtectedRoute>
-              <AppLayout>
-                <WishlistItemDetailPage />
-              </AppLayout>
+              <WishlistItemDetailPage />
             </ProtectedRoute>
           }
         />
+        <Route path="/u/:username" element={<PublicProfilePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

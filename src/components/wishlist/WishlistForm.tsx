@@ -16,6 +16,7 @@ import {
   useUpdateWishlistItem,
 } from "@/hooks/useWishlist";
 import { uploadMultipleImages, deleteMultipleImages } from "@/lib/storage";
+import { useToast } from "@/components/ui/toast";
 import { ImagePlus, X } from "lucide-react";
 import type { WishlistItem } from "@/types";
 
@@ -45,6 +46,7 @@ export function WishlistForm({
   const [newImages, setNewImages] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { addToast } = useToast();
 
   const createMutation = useCreateWishlistItem(userId);
   const updateMutation = useUpdateWishlistItem();
@@ -150,6 +152,7 @@ export function WishlistForm({
       handleClose();
     } catch (error) {
       console.error("Error saving item:", error);
+      addToast("Error saving item. Please try again.", "error");
     } finally {
       setIsUploading(false);
     }

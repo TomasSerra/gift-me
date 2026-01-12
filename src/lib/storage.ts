@@ -83,8 +83,7 @@ function getPathFromUrl(downloadUrl: string): string | null {
 export async function deleteWishlistImage(downloadUrl: string): Promise<void> {
   const path = getPathFromUrl(downloadUrl);
   if (!path) {
-    console.warn("Could not extract path from URL:", downloadUrl);
-    return;
+    throw new Error(`Could not extract path from URL: ${downloadUrl}`);
   }
 
   const storageRef = ref(storage, path);
@@ -93,13 +92,9 @@ export async function deleteWishlistImage(downloadUrl: string): Promise<void> {
 
 /**
  * Delete multiple images from Firebase Storage
+ * Throws error if any deletion fails - use this when you need atomic behavior
  */
 export async function deleteMultipleImages(downloadUrls: string[]): Promise<void> {
-  const deletePromises = downloadUrls.map((url) =>
-    deleteWishlistImage(url).catch((error) => {
-      // Log but don't fail if individual image deletion fails
-      console.warn("Failed to delete image:", url, error);
-    })
-  );
+  const deletePromises = downloadUrls.map((url) => deleteWishlistImage(url));
   await Promise.all(deletePromises);
 }

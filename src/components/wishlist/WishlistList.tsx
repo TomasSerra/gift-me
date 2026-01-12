@@ -31,12 +31,11 @@ export function WishlistList({ userId, isOwner = false }: WishlistListProps) {
   };
 
   const handleCloseForm = (open: boolean) => {
-    if (!open && isClosingRef.current) return; // Prevent multiple close calls
+    if (!open && isClosingRef.current) return;
 
     if (!open) {
       isClosingRef.current = true;
       setFormOpen(false);
-      // Reset editingItem after sheet animation completes
       setTimeout(() => {
         setEditingItem(null);
         isClosingRef.current = false;
@@ -78,110 +77,102 @@ export function WishlistList({ userId, isOwner = false }: WishlistListProps) {
     );
   }
 
-  if (items.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-          <Gift className="w-8 h-8 text-muted-foreground" />
-        </div>
-        <h3 className="font-medium text-foreground">
-          {isOwner ? "Your wishlist is empty" : "Empty wishlist"}
-        </h3>
-        <p className="text-sm text-muted-foreground mt-1">
-          {isOwner
-            ? "Add items you'd like to receive"
-            : "This user hasn't added items yet"}
-        </p>
-        {isOwner && (
-          <Button className="mt-4" onClick={() => setFormOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Item
-          </Button>
-        )}
-
-        {isOwner && (
-          <WishlistForm
-            userId={userId}
-            open={formOpen}
-            onOpenChange={handleCloseForm}
-            editItem={editingItem}
-          />
-        )}
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-4">
-      {/* Header with Add button and view toggle */}
-      <div className="flex items-center gap-2">
-        {isOwner && (
-          <Button className="flex-1" onClick={() => setFormOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Item
-          </Button>
-        )}
-
-        {/* View mode toggle */}
-        <div className="flex bg-muted rounded-lg p-1">
-          <button
-            onClick={() => setViewMode("grid")}
-            className={cn(
-              "p-2 rounded-md transition-colors",
-              viewMode === "grid"
-                ? "bg-background shadow-sm"
-                : "hover:bg-background/50"
-            )}
-          >
-            <LayoutGrid className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setViewMode("list")}
-            className={cn(
-              "p-2 rounded-md transition-colors",
-              viewMode === "list"
-                ? "bg-background shadow-sm"
-                : "hover:bg-background/50"
-            )}
-          >
-            <List className="w-4 h-4" />
-          </button>
+    <>
+      {items.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+            <Gift className="w-8 h-8 text-muted-foreground" />
+          </div>
+          <h3 className="font-medium text-foreground">
+            {isOwner ? "Your wishlist is empty" : "Empty wishlist"}
+          </h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            {isOwner
+              ? "Add items you'd like to receive"
+              : "This user hasn't added items yet"}
+          </p>
+          {isOwner && (
+            <Button className="mt-4" onClick={() => setFormOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Item
+            </Button>
+          )}
         </div>
-      </div>
+      ) : (
+        <div className="space-y-4">
+          {/* Header with Add button and view toggle */}
+          <div className="flex items-center gap-2">
+            {isOwner && (
+              <Button className="flex-1" onClick={() => setFormOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Item
+              </Button>
+            )}
 
-      {/* Grid view */}
-      {viewMode === "grid" && (
-        <div className="grid grid-cols-2 gap-3">
-          {items.map((item) => (
-            <WishlistGridItem
-              key={item.id}
-              item={item}
-              isOwner={isOwner}
-              onEdit={() => handleEdit(item)}
-            />
-          ))}
+            {/* View mode toggle */}
+            <div className="flex bg-muted rounded-full p-1 h-11">
+              <button
+                onClick={() => setViewMode("grid")}
+                className={cn(
+                  "px-4 rounded-full transition-colors flex items-center justify-center",
+                  viewMode === "grid"
+                    ? "bg-background shadow-sm"
+                    : "hover:bg-background/50"
+                )}
+              >
+                <LayoutGrid className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setViewMode("list")}
+                className={cn(
+                  "px-4 rounded-full transition-colors flex items-center justify-center",
+                  viewMode === "list"
+                    ? "bg-background shadow-sm"
+                    : "hover:bg-background/50"
+                )}
+              >
+                <List className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Grid view */}
+          {viewMode === "grid" && (
+            <div className="grid grid-cols-2 gap-3">
+              {items.map((item) => (
+                <WishlistGridItem
+                  key={item.id}
+                  item={item}
+                  isOwner={isOwner}
+                  onEdit={() => handleEdit(item)}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* List view */}
+          {viewMode === "list" && (
+            <div className="space-y-3">
+              {items.map((item, index) => (
+                <WishlistItemCard
+                  key={item.id}
+                  item={item}
+                  isOwner={isOwner}
+                  onEdit={() => handleEdit(item)}
+                  onMoveUp={() => handleMoveUp(index)}
+                  onMoveDown={() => handleMoveDown(index)}
+                  isFirst={index === 0}
+                  isLast={index === items.length - 1}
+                  priority={index + 1}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* List view */}
-      {viewMode === "list" && (
-        <div className="space-y-3">
-          {items.map((item, index) => (
-            <WishlistItemCard
-              key={item.id}
-              item={item}
-              isOwner={isOwner}
-              onEdit={() => handleEdit(item)}
-              onMoveUp={() => handleMoveUp(index)}
-              onMoveDown={() => handleMoveDown(index)}
-              isFirst={index === 0}
-              isLast={index === items.length - 1}
-              priority={index + 1}
-            />
-          ))}
-        </div>
-      )}
-
+      {/* Single WishlistForm instance - always rendered */}
       {isOwner && (
         <WishlistForm
           userId={userId}
@@ -190,6 +181,6 @@ export function WishlistList({ userId, isOwner = false }: WishlistListProps) {
           editItem={editingItem}
         />
       )}
-    </div>
+    </>
   );
 }

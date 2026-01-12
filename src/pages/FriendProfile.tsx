@@ -18,9 +18,9 @@ import {
   Clock,
   Check,
   X,
+  Cake,
 } from "lucide-react";
 import { format } from "date-fns";
-import { enUS } from "date-fns/locale";
 import {
   Dialog,
   DialogContent,
@@ -29,7 +29,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import type { UserWithFriendship } from "@/types";
 
 type FriendshipStatus = UserWithFriendship["friendshipStatus"];
@@ -37,7 +37,7 @@ type FriendshipStatus = UserWithFriendship["friendshipStatus"];
 export function FriendProfilePage() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
-  const { user, loading } = useUserProfile(userId || "");
+  const { data: user, isLoading: loading } = useUserProfile(userId || "");
   const sendRequest = useSendFriendRequest();
   const cancelRequest = useCancelFriendRequest();
   const acceptRequest = useAcceptFriendRequest();
@@ -45,12 +45,17 @@ export function FriendProfilePage() {
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
 
   // Optimistic state for friendship status
-  const [optimisticStatus, setOptimisticStatus] = useState<FriendshipStatus | null>(null);
+  const [optimisticStatus, setOptimisticStatus] =
+    useState<FriendshipStatus | null>(null);
+  const [prevFriendshipStatus, setPrevFriendshipStatus] = useState(
+    user?.friendshipStatus
+  );
 
-  // Reset optimistic state when user data changes
-  useEffect(() => {
+  // Reset optimistic state when server status changes (React pattern for syncing state with props)
+  if (user?.friendshipStatus !== prevFriendshipStatus) {
+    setPrevFriendshipStatus(user?.friendshipStatus);
     setOptimisticStatus(null);
-  }, [user?.friendshipStatus]);
+  }
 
   const effectiveStatus = optimisticStatus ?? user?.friendshipStatus ?? "none";
 
@@ -80,7 +85,11 @@ export function FriendProfilePage() {
       <PageContainer header={header}>
         <div className="flex flex-col items-center justify-center py-12">
           <p className="text-muted-foreground">User not found</p>
-          <Button variant="outline" className="mt-4" onClick={() => navigate(-1)}>
+          <Button
+            variant="outline"
+            className="mt-4"
+            onClick={() => navigate(-1)}
+          >
             Go Back
           </Button>
         </div>
@@ -99,10 +108,13 @@ export function FriendProfilePage() {
 
   const handleCancelRequest = () => {
     setOptimisticStatus("none");
-    if (user.requestId) {
-      cancelRequest.mutate(user.requestId, {
-        onError: () => setOptimisticStatus(null),
-      });
+    if (user?.requestId) {
+      cancelRequest.mutate(
+        { requestId: user.requestId, toUserId: user.id },
+        {
+          onError: () => setOptimisticStatus(null),
+        }
+      );
     }
   };
 
@@ -118,10 +130,13 @@ export function FriendProfilePage() {
 
   const handleRejectRequest = () => {
     setOptimisticStatus("none");
-    if (user.requestId) {
-      cancelRequest.mutate(user.requestId, {
-        onError: () => setOptimisticStatus(null),
-      });
+    if (user?.requestId) {
+      cancelRequest.mutate(
+        { requestId: user.requestId, toUserId: user.id },
+        {
+          onError: () => setOptimisticStatus(null),
+        }
+      );
     }
   };
 
@@ -200,8 +215,9 @@ export function FriendProfilePage() {
         <p className="text-muted-foreground">@{user.username}</p>
 
         {birthday && (
-          <p className="text-sm text-muted-foreground mt-1">
-            {format(birthday, "MMMM d", { locale: enUS })}
+          <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+            <Cake className="w-4 h-4" />
+            {format(birthday, "MMMM d")}
           </p>
         )}
 
@@ -229,8 +245,8 @@ export function FriendProfilePage() {
           <DialogHeader>
             <DialogTitle>Remove Friend</DialogTitle>
             <DialogDescription>
-              Are you sure you want to remove{" "}
-              {user.firstName || user.username} from your friends?
+              Are you sure you want to remove {user.firstName || user.username}{" "}
+              from your friends?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -240,10 +256,7 @@ export function FriendProfilePage() {
             >
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleRemoveFriend}
-            >
+            <Button variant="destructive" onClick={handleRemoveFriend}>
               Remove
             </Button>
           </DialogFooter>

@@ -7,9 +7,11 @@ import {
   limit,
   onSnapshot,
 } from "firebase/firestore";
+import { useQueryClient } from "@tanstack/react-query";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFriends } from "./useFriends";
+import { queryKeys } from "@/lib/queryKeys";
 import type { ActivityItem, User } from "@/types";
 
 export interface ActivityWithUser extends ActivityItem {
@@ -19,8 +21,15 @@ export interface ActivityWithUser extends ActivityItem {
 export function useActivityFeed() {
   const { user } = useAuth();
   const { friends } = useFriends();
-  const [activities, setActivities] = useState<ActivityWithUser[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  // Check for cached data to avoid showing loader on re-mount
+  const cachedActivities = queryClient.getQueryData<ActivityWithUser[]>(
+    queryKeys.activity.feed(user?.id || "")
+  );
+
+  const [activities, setActivities] = useState<ActivityWithUser[]>(cachedActivities || []);
+  const [loading, setLoading] = useState(!cachedActivities);
 
   useEffect(() => {
     if (!user || friends.length === 0) {
@@ -58,14 +67,16 @@ export function useActivityFeed() {
         })
       );
 
-      setActivities(
-        activitiesData.filter((a): a is ActivityWithUser => a !== null)
-      );
+      const filteredActivities = activitiesData.filter((a): a is ActivityWithUser => a !== null);
+      setActivities(filteredActivities);
       setLoading(false);
+
+      // Update cache for next mount
+      queryClient.setQueryData(queryKeys.activity.feed(user.id), filteredActivities);
     });
 
     return () => unsubscribe();
-  }, [user, friends]);
+  }, [user, friends, queryClient]);
 
   return { activities, loading };
 }

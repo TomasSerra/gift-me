@@ -10,14 +10,23 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverItem,
+} from "@/components/ui/popover";
 import { ImageCarousel } from "./ImageCarousel";
 import { useDeleteWishlistItem } from "@/hooks/useWishlist";
+import { shareContent } from "@/lib/share";
 import {
   ChevronUp,
   ChevronDown,
+  MoreVertical,
   Pencil,
   Trash2,
   ExternalLink,
+  Share2,
 } from "lucide-react";
 import type { WishlistItem } from "@/types";
 
@@ -62,16 +71,18 @@ export function WishlistItemCard({
     }).format(price);
   };
 
+  const shareUrl = `${window.location.origin}/item/${item.id}`;
+
   return (
     <>
       <Card
-        className="overflow-hidden cursor-pointer hover:bg-accent/50 transition-colors"
+        className="cursor-pointer hover:bg-accent/50 transition-colors"
         onClick={handleCardClick}
       >
         <CardContent className="p-0">
           <div className="flex relative">
             {/* Image or priority number - absolutely positioned so it doesn't affect row height */}
-            <div className="absolute left-0 top-0 bottom-0 w-28">
+            <div className="absolute left-0 top-0 bottom-0 w-28 overflow-hidden rounded-l-lg">
               {item.images && item.images.length > 0 ? (
                 <ImageCarousel images={item.images} compact />
               ) : (
@@ -100,7 +111,7 @@ export function WishlistItemCard({
                   )}
                 </div>
 
-                {/* Owner actions */}
+                {/* Owner reorder actions */}
                 {isOwner && (
                   <div
                     className="flex flex-col gap-1"
@@ -143,29 +154,46 @@ export function WishlistItemCard({
                   </a>
                 )}
 
-                {isOwner && (
-                  <div
-                    className="flex items-center gap-1 ml-auto"
-                    onClick={(e) => e.stopPropagation()}
+                <div
+                  className="flex items-center gap-1 ml-auto"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Share button */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      shareContent({ title: item.name, url: shareUrl });
+                    }}
                   >
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={onEdit}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-destructive hover:text-destructive"
-                      onClick={() => setDeleteDialogOpen(true)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
+                    <Share2 className="h-5 w-5" />
+                  </Button>
+
+                  {/* Owner actions popover */}
+                  {isOwner && (
+                    <Popover>
+                      <PopoverTrigger className="bg-transparent hover:bg-accent p-2">
+                        <MoreVertical className="h-5 w-5 text-foreground" />
+                      </PopoverTrigger>
+                      <PopoverContent>
+                        <PopoverItem onClick={onEdit}>
+                          <Pencil className="w-4 h-4" />
+                          Edit
+                        </PopoverItem>
+                        <PopoverItem
+                          variant="destructive"
+                          onClick={() => setDeleteDialogOpen(true)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Delete
+                        </PopoverItem>
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                </div>
               </div>
             </div>
           </div>
