@@ -31,7 +31,7 @@ export function ProfilePage() {
   return (
     <PageContainer header={header} noPadding>
       {/* Share button - floating below header */}
-      <div className="absolute top-24 right-4 z-10">
+      <div className="absolute top-24 safe-area-top right-4 z-10">
         <ShareButton url={shareUrl} title={shareTitle} variant="primary" />
       </div>
 

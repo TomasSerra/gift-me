@@ -15,7 +15,7 @@ export function PageContainer({
   noPadding = false,
 }: PageContainerProps) {
   return (
-    <div className="min-h-svh bg-background pb-24">
+    <div className="min-h-dvh bg-background pb-32">
       {header && (
         <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-lg border-b safe-area-top">
           {header}
