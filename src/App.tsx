@@ -105,14 +105,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/item/:itemId"
-          element={
-            <ProtectedRoute>
-              <WishlistItemDetailPage />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/item/:itemId" element={<WishlistItemDetailPage />} />
         <Route path="/u/:username" element={<PublicProfilePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

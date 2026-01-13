@@ -1,0 +1,38 @@
+{
+  "rewrites": [
+    {
+      "source": "/u/:username",
+      "has": [
+        {
+          "type": "query",
+          "key": "_og",
+          "value": "1"
+        }
+      ],
+      "destination": "/index.html"
+    },
+    {
+      "source": "/item/:itemId",
+      "has": [
+        {
+          "type": "query",
+          "key": "_og",
+          "value": "1"
+        }
+      ],
+      "destination": "/index.html"
+    },
+    {
+      "source": "/u/:username",
+      "destination": "/api/og/u/:username"
+    },
+    {
+      "source": "/item/:itemId",
+      "destination": "/api/og/item/:itemId"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

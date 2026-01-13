@@ -21,6 +21,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { WishlistForm } from "@/components/wishlist/WishlistForm";
+import { ShareButton } from "@/components/ui/share-button";
 import { ArrowLeft, ExternalLink, ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { WishlistItem } from "@/types";
@@ -114,6 +115,8 @@ export function WishlistItemDetailPage() {
     navigate(-1);
   };
 
+  const shareUrl = `${window.location.origin}/item/${itemId}`;
+
   const header = (
     <div className="flex items-center gap-3 p-4">
       <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
@@ -122,21 +125,31 @@ export function WishlistItemDetailPage() {
       <h1 className="text-lg font-semibold truncate flex-1">
         {loading ? "Loading..." : item?.name || "Item not found"}
       </h1>
-      {isOwner && item && (
-        <div className="flex gap-1">
-          <Button variant="ghost" size="icon" onClick={() => setEditFormOpen(true)}>
-            <Pencil className="w-5 h-5" />
-          </Button>
-          <Button
+      <div className="flex gap-1">
+        {item && (
+          <ShareButton
+            url={shareUrl}
+            title={item.name}
+            text={item.description}
             variant="ghost"
-            size="icon"
-            className="text-destructive hover:text-destructive"
-            onClick={() => setDeleteDialogOpen(true)}
-          >
-            <Trash2 className="w-5 h-5" />
-          </Button>
-        </div>
-      )}
+          />
+        )}
+        {isOwner && item && (
+          <>
+            <Button variant="ghost" size="icon" onClick={() => setEditFormOpen(true)}>
+              <Pencil className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-destructive hover:text-destructive"
+              onClick={() => setDeleteDialogOpen(true)}
+            >
+              <Trash2 className="w-5 h-5" />
+            </Button>
+          </>
+        )}
+      </div>
     </div>
   );
 
@@ -253,7 +266,9 @@ export function WishlistItemDetailPage() {
         {owner && !isOwner && (
           <div
             className="flex items-center gap-3 pt-4 border-t cursor-pointer"
-            onClick={() => navigate(`/friends/${owner.id}`)}
+            onClick={() =>
+              navigate(currentUser ? `/friends/${owner.id}` : `/u/${owner.username}`)
+            }
           >
             <Avatar
               id={owner.id}
