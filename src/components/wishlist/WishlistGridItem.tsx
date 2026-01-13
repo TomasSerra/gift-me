@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,22 +21,39 @@ import {
 import { ShareButton } from "@/components/ui/share-button";
 import { useDeleteWishlistItem } from "@/hooks/useWishlist";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { WishlistItem } from "@/types";
 
 interface WishlistGridItemProps {
   item: WishlistItem;
   isOwner?: boolean;
+  isReorderMode?: boolean;
   onEdit?: () => void;
 }
 
 export function WishlistGridItem({
   item,
   isOwner = false,
+  isReorderMode = false,
   onEdit,
 }: WishlistGridItemProps) {
   const navigate = useNavigate();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const deleteMutation = useDeleteWishlistItem();
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id, disabled: !isReorderMode });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
 
   const handleCardClick = () => {
     navigate(`/item/${item.id}`);
@@ -57,8 +76,15 @@ export function WishlistGridItem({
   return (
     <>
       <Card
-        className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-        onClick={handleCardClick}
+        ref={setNodeRef}
+        style={style}
+        className={cn(
+          "overflow-hidden cursor-pointer hover:shadow-md transition-shadow",
+          isReorderMode && "touch-none",
+          isDragging && "opacity-50 shadow-lg z-50"
+        )}
+        onClick={isReorderMode ? undefined : handleCardClick}
+        {...(isReorderMode ? { ...attributes, ...listeners } : {})}
       >
         {/* Image */}
         <div className="aspect-square relative bg-muted">
@@ -81,15 +107,17 @@ export function WishlistGridItem({
             </div>
           )}
 
-          {/* Actions overlay */}
-          <div
-            className="absolute top-2 left-2 flex gap-1"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <ShareButton url={shareUrl} title={item.name} />
-          </div>
-          <div className="absolute top-2 right-2">
-            {isOwner && (
+          {/* Actions overlay - hidden in reorder mode */}
+          {!isReorderMode && (
+            <>
+              <div
+                className="absolute top-2 left-2 flex gap-1"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <ShareButton url={shareUrl} title={item.name} />
+              </div>
+              <div className="absolute top-2 right-2">
+                {isOwner && (
               <Popover>
                 <PopoverTrigger>
                   <MoreVertical className="w-5 h-5" />
@@ -109,7 +137,9 @@ export function WishlistGridItem({
                 </PopoverContent>
               </Popover>
             )}
-          </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Info */}

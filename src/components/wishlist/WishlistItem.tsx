@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,19 +22,20 @@ import { ImageCarousel } from "./ImageCarousel";
 import { useDeleteWishlistItem } from "@/hooks/useWishlist";
 import { shareContent } from "@/lib/share";
 import {
-  ChevronUp,
-  ChevronDown,
+  GripVertical,
   MoreVertical,
   Pencil,
   Trash2,
   ExternalLink,
   Share2,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { WishlistItem } from "@/types";
 
 interface WishlistItemCardProps {
   item: WishlistItem;
   isOwner?: boolean;
+  isReorderMode?: boolean;
   onEdit?: () => void;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
@@ -44,16 +47,27 @@ interface WishlistItemCardProps {
 export function WishlistItemCard({
   item,
   isOwner = false,
+  isReorderMode = false,
   onEdit,
-  onMoveUp,
-  onMoveDown,
-  isFirst,
-  isLast,
   priority,
 }: WishlistItemCardProps) {
   const navigate = useNavigate();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const deleteMutation = useDeleteWishlistItem();
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id, disabled: !isReorderMode });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
 
   const handleCardClick = () => {
     navigate(`/item/${item.id}`);
@@ -76,13 +90,34 @@ export function WishlistItemCard({
   return (
     <>
       <Card
-        className="cursor-pointer hover:bg-accent/50 transition-colors"
+        ref={setNodeRef}
+        style={style}
+        className={cn(
+          "cursor-pointer hover:bg-accent/50 transition-colors",
+          isDragging && "opacity-50 shadow-lg z-50"
+        )}
         onClick={handleCardClick}
       >
         <CardContent className="p-0">
           <div className="flex relative">
+            {/* Drag handle - only visible in reorder mode */}
+            {isReorderMode && (
+              <div
+                className="absolute left-0 top-0 bottom-0 w-8 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none z-10"
+                onClick={(e) => e.stopPropagation()}
+                {...attributes}
+                {...listeners}
+              >
+                <GripVertical className="h-5 w-5 text-muted-foreground" />
+              </div>
+            )}
             {/* Image or priority number - absolutely positioned so it doesn't affect row height */}
-            <div className="absolute left-0 top-0 bottom-0 w-28 overflow-hidden rounded-l-lg">
+            <div
+              className={cn(
+                "absolute top-0 bottom-0 w-28 overflow-hidden",
+                isReorderMode ? "left-8" : "left-0 rounded-l-lg"
+              )}
+            >
               {item.images && item.images.length > 0 ? (
                 <ImageCarousel images={item.images} compact />
               ) : (
@@ -94,8 +129,8 @@ export function WishlistItemCard({
               )}
             </div>
 
-            {/* Content - with left margin for image space */}
-            <div className="flex-1 p-3 ml-28 min-w-0 min-h-24">
+            {/* Content - with left margin for image space (and drag handle if reorder mode) */}
+            <div className={cn("flex-1 p-3 min-w-0 min-h-24", isReorderMode ? "ml-36" : "ml-28")}>
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <h3 className="font-medium truncate">{item.name}</h3>
@@ -111,90 +146,66 @@ export function WishlistItemCard({
                   )}
                 </div>
 
-                {/* Owner reorder actions */}
-                {isOwner && (
-                  <div
-                    className="flex flex-col gap-1"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={onMoveUp}
-                      disabled={isFirst}
-                    >
-                      <ChevronUp className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={onMoveDown}
-                      disabled={isLast}
-                    >
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
               </div>
 
-              {/* Action buttons */}
-              <div className="flex items-center gap-2 mt-2">
-                {item.link && (
-                  <a
-                    href={item.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="text-xs text-primary hover:underline flex items-center gap-1"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                    View link
-                  </a>
-                )}
-
-                <div
-                  className="flex items-center gap-1 ml-auto"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {/* Share button */}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      shareContent({ title: item.name, url: shareUrl });
-                    }}
-                  >
-                    <Share2 className="h-5 w-5" />
-                  </Button>
-
-                  {/* Owner actions popover */}
-                  {isOwner && (
-                    <Popover>
-                      <PopoverTrigger className="bg-transparent hover:bg-accent p-2">
-                        <MoreVertical className="h-5 w-5 text-foreground" />
-                      </PopoverTrigger>
-                      <PopoverContent>
-                        <PopoverItem onClick={onEdit}>
-                          <Pencil className="w-4 h-4" />
-                          Edit
-                        </PopoverItem>
-                        <PopoverItem
-                          variant="destructive"
-                          onClick={() => setDeleteDialogOpen(true)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Delete
-                        </PopoverItem>
-                      </PopoverContent>
-                    </Popover>
+              {/* Action buttons - hidden in reorder mode */}
+              {!isReorderMode && (
+                <div className="flex items-center gap-2 mt-2">
+                  {item.link && (
+                    <a
+                      href={item.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-xs text-primary hover:underline flex items-center gap-1"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      View link
+                    </a>
                   )}
+
+                  <div
+                    className="flex items-center gap-1 ml-auto"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Share button */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        shareContent({ title: item.name, url: shareUrl });
+                      }}
+                    >
+                      <Share2 className="h-5 w-5" />
+                    </Button>
+
+                    {/* Owner actions popover */}
+                    {isOwner && (
+                      <Popover>
+                        <PopoverTrigger className="bg-transparent hover:bg-accent p-2">
+                          <MoreVertical className="h-5 w-5 text-foreground" />
+                        </PopoverTrigger>
+                        <PopoverContent>
+                          <PopoverItem onClick={onEdit}>
+                            <Pencil className="w-4 h-4" />
+                            Edit
+                          </PopoverItem>
+                          <PopoverItem
+                            variant="destructive"
+                            onClick={() => setDeleteDialogOpen(true)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                          </PopoverItem>
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </CardContent>

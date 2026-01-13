@@ -1,11 +1,27 @@
 import { useState, useRef } from "react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { useWishlist, useReorderWishlist } from "@/hooks/useWishlist";
 import { WishlistItemCard } from "./WishlistItem";
 import { WishlistGridItem } from "./WishlistGridItem";
 import { WishlistForm } from "./WishlistForm";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Gift, LayoutGrid, List } from "lucide-react";
+import { Plus, Gift, LayoutGrid, List, ArrowUpDown, Check } from "lucide-react";
 import type { WishlistItem } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +38,48 @@ export function WishlistList({ userId, isOwner = false }: WishlistListProps) {
   const [formOpen, setFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<WishlistItem | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [isReorderMode, setIsReorderMode] = useState(false);
   const isClosingRef = useRef(false);
+
+  // DnD sensors - only active when in reorder mode
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 100,
+        tolerance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Exit reorder mode when view mode changes
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    setIsReorderMode(false);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = items.findIndex((item) => item.id === active.id);
+      const newIndex = items.findIndex((item) => item.id === over.id);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newItems = [...items];
+        const [movedItem] = newItems.splice(oldIndex, 1);
+        newItems.splice(newIndex, 0, movedItem);
+        reorderMutation.mutate(newItems);
+      }
+    }
+  };
 
   const handleEdit = (item: WishlistItem) => {
     setEditingItem(item);
@@ -43,26 +100,6 @@ export function WishlistList({ userId, isOwner = false }: WishlistListProps) {
     } else {
       setFormOpen(true);
     }
-  };
-
-  const handleMoveUp = (index: number) => {
-    if (index === 0) return;
-    const newItems = [...items];
-    [newItems[index - 1], newItems[index]] = [
-      newItems[index],
-      newItems[index - 1],
-    ];
-    reorderMutation.mutate(newItems);
-  };
-
-  const handleMoveDown = (index: number) => {
-    if (index === items.length - 1) return;
-    const newItems = [...items];
-    [newItems[index], newItems[index + 1]] = [
-      newItems[index + 1],
-      newItems[index],
-    ];
-    reorderMutation.mutate(newItems);
   };
 
   if (loading) {
@@ -101,19 +138,37 @@ export function WishlistList({ userId, isOwner = false }: WishlistListProps) {
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Header with Add button and view toggle */}
+          {/* Header with Add button, reorder toggle, and view toggle */}
           <div className="flex items-center gap-2">
-            {isOwner && (
+            {isOwner && !isReorderMode && (
               <Button className="flex-1" onClick={() => setFormOpen(true)}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Item
               </Button>
             )}
 
+            {/* Reorder mode toggle - only for owners */}
+            {isOwner && (
+              <Button
+                variant={isReorderMode ? "default" : "outline"}
+                className={cn("h-11", isReorderMode && "flex-1")}
+                onClick={() => setIsReorderMode(!isReorderMode)}
+              >
+                {isReorderMode ? (
+                  <>
+                    <Check className="w-4 h-4 mr-2" />
+                    Done
+                  </>
+                ) : (
+                  <ArrowUpDown className="w-5 h-5" />
+                )}
+              </Button>
+            )}
+
             {/* View mode toggle */}
             <div className="flex bg-muted rounded-full p-1 h-11">
               <button
-                onClick={() => setViewMode("grid")}
+                onClick={() => handleViewModeChange("grid")}
                 className={cn(
                   "px-4 rounded-full transition-colors flex items-center justify-center",
                   viewMode === "grid"
@@ -124,7 +179,7 @@ export function WishlistList({ userId, isOwner = false }: WishlistListProps) {
                 <LayoutGrid className="w-5 h-5" />
               </button>
               <button
-                onClick={() => setViewMode("list")}
+                onClick={() => handleViewModeChange("list")}
                 className={cn(
                   "px-4 rounded-full transition-colors flex items-center justify-center",
                   viewMode === "list"
@@ -139,35 +194,57 @@ export function WishlistList({ userId, isOwner = false }: WishlistListProps) {
 
           {/* Grid view */}
           {viewMode === "grid" && (
-            <div className="grid grid-cols-2 gap-3">
-              {items.map((item) => (
-                <WishlistGridItem
-                  key={item.id}
-                  item={item}
-                  isOwner={isOwner}
-                  onEdit={() => handleEdit(item)}
-                />
-              ))}
-            </div>
+            <DndContext
+              sensors={isReorderMode ? sensors : undefined}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={items.map((item) => item.id)}
+                strategy={rectSortingStrategy}
+                disabled={!isReorderMode}
+              >
+                <div className="grid grid-cols-2 gap-3">
+                  {items.map((item) => (
+                    <WishlistGridItem
+                      key={item.id}
+                      item={item}
+                      isOwner={isOwner}
+                      isReorderMode={isReorderMode}
+                      onEdit={() => handleEdit(item)}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
           )}
 
           {/* List view */}
           {viewMode === "list" && (
-            <div className="space-y-3">
-              {items.map((item, index) => (
-                <WishlistItemCard
-                  key={item.id}
-                  item={item}
-                  isOwner={isOwner}
-                  onEdit={() => handleEdit(item)}
-                  onMoveUp={() => handleMoveUp(index)}
-                  onMoveDown={() => handleMoveDown(index)}
-                  isFirst={index === 0}
-                  isLast={index === items.length - 1}
-                  priority={index + 1}
-                />
-              ))}
-            </div>
+            <DndContext
+              sensors={isReorderMode ? sensors : undefined}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={items.map((item) => item.id)}
+                strategy={verticalListSortingStrategy}
+                disabled={!isReorderMode}
+              >
+                <div className="space-y-3">
+                  {items.map((item, index) => (
+                    <WishlistItemCard
+                      key={item.id}
+                      item={item}
+                      isOwner={isOwner}
+                      isReorderMode={isReorderMode}
+                      onEdit={() => handleEdit(item)}
+                      priority={index + 1}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       )}

@@ -74,6 +74,24 @@ html, body {
   /* Hide scrollbar */
   -ms-overflow-style: none;
   scrollbar-width: none;
+  /* Disable text selection */
+  -webkit-user-select: none;
+  user-select: none;
+  /* Disable iOS long-press callout */
+  -webkit-touch-callout: none;
+}
+
+/* Disable image dragging and long-press */
+img {
+  -webkit-user-drag: none;
+  user-drag: none;
+  pointer-events: none;
+}
+
+/* Allow selection only in input fields */
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 html::-webkit-scrollbar,
