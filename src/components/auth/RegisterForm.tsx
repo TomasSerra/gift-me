@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/toast";
-import { Timestamp } from "firebase/firestore";
 
 const registerSchema = z
   .object({
@@ -83,9 +82,12 @@ export function RegisterForm({ onLogin }: RegisterFormProps) {
 
     setIsLoading(true);
     try {
-      const birthday = data.birthday
-        ? Timestamp.fromDate(new Date(data.birthday))
-        : undefined;
+      // Parse date as local timezone (not UTC)
+      let birthday: Date | undefined;
+      if (data.birthday) {
+        const [year, month, day] = data.birthday.split("-").map(Number);
+        birthday = new Date(year, month - 1, day);
+      }
 
       await authRegister(
         data.email,
@@ -93,7 +95,7 @@ export function RegisterForm({ onLogin }: RegisterFormProps) {
         data.username,
         data.firstName,
         data.lastName,
-        birthday?.toDate()
+        birthday
       );
       addToast("Account created successfully!", "success");
     } catch (error) {

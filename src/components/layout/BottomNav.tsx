@@ -8,6 +8,11 @@ const navItems = [
   { to: "/friends", icon: Users, label: "Friends" },
 ];
 
+// Detect if app is installed as PWA
+const isStandalone =
+  window.matchMedia("(display-mode: standalone)").matches ||
+  (navigator as Navigator & { standalone?: boolean }).standalone === true;
+
 export function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -18,7 +23,12 @@ export function BottomNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-4 right-4 z-40 safe-area-bottom transform-gpu">
+    <nav
+      className={cn(
+        "fixed left-4 right-4 z-40 safe-area-bottom transform-gpu",
+        isStandalone ? "bottom-0" : "bottom-4"
+      )}
+    >
       <div className="flex items-center justify-between bg-card/80 backdrop-blur-lg rounded-full border shadow-lg p-2">
         {navItems.map((item) => {
           const active = isActive(item.to);

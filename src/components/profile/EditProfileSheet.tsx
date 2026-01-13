@@ -51,10 +51,17 @@ export function EditProfileSheet({
   });
 
   const onSubmit = async (data: EditProfileFormData) => {
+    // Parse date as local timezone (not UTC)
+    let birthday: Date | null = null;
+    if (data.birthday) {
+      const [year, month, day] = data.birthday.split("-").map(Number);
+      birthday = new Date(year, month - 1, day);
+    }
+
     await updateUser.mutateAsync({
       firstName: data.firstName,
       lastName: data.lastName,
-      birthday: data.birthday ? new Date(data.birthday) : null,
+      birthday,
     });
     onOpenChange(false);
   };
