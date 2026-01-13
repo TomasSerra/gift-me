@@ -22,7 +22,13 @@ import {
 } from "@/components/ui/dialog";
 import { WishlistForm } from "@/components/wishlist/WishlistForm";
 import { ShareButton } from "@/components/ui/share-button";
-import { ArrowLeft, ExternalLink, ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, ExternalLink, ChevronLeft, ChevronRight, Pencil, Trash2, UserPlus, MoreVertical } from "lucide-react";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverItem,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import type { WishlistItem } from "@/types";
 
@@ -119,13 +125,20 @@ export function WishlistItemDetailPage() {
 
   const header = (
     <div className="flex items-center gap-3 p-4">
-      <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-        <ArrowLeft className="w-5 h-5" />
-      </Button>
+      {currentUser ? (
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+      ) : (
+        <Button variant="ghost" size="sm" onClick={() => navigate("/auth")}>
+          <UserPlus className="w-4 h-4 mr-1" />
+          Sign up
+        </Button>
+      )}
       <h1 className="text-lg font-semibold truncate flex-1">
         {loading ? "Loading..." : item?.name || "Item not found"}
       </h1>
-      <div className="flex gap-1">
+      <div className="flex items-center gap-1">
         {item && (
           <ShareButton
             url={shareUrl}
@@ -135,19 +148,24 @@ export function WishlistItemDetailPage() {
           />
         )}
         {isOwner && item && (
-          <>
-            <Button variant="ghost" size="icon" onClick={() => setEditFormOpen(true)}>
-              <Pencil className="w-5 h-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-destructive hover:text-destructive"
-              onClick={() => setDeleteDialogOpen(true)}
-            >
-              <Trash2 className="w-5 h-5" />
-            </Button>
-          </>
+          <Popover>
+            <PopoverTrigger className="bg-transparent hover:bg-accent">
+              <MoreVertical className="w-5 h-5" />
+            </PopoverTrigger>
+            <PopoverContent align="end">
+              <PopoverItem onClick={() => setEditFormOpen(true)}>
+                <Pencil className="w-4 h-4" />
+                Edit
+              </PopoverItem>
+              <PopoverItem
+                variant="destructive"
+                onClick={() => setDeleteDialogOpen(true)}
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </PopoverItem>
+            </PopoverContent>
+          </Popover>
         )}
       </div>
     </div>

@@ -9,7 +9,7 @@ export function AuthPage() {
   const [view, setView] = useState<AuthView>("login");
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background">
+    <div className="min-h-dvh h-dvh flex flex-col items-center justify-center p-6 bg-background overflow-hidden">
       {/* Logo */}
       <div className="flex items-center gap-3 mb-8">
         <img src="/logo.png" alt="GiftMe" className="w-14 h-14" />

@@ -42,7 +42,7 @@ export function PopoverTrigger({ children, className }: PopoverTriggerProps) {
     <button
       type="button"
       className={cn(
-        "bg-black/60 text-white rounded-full p-2 hover:bg-black/80 transition-colors",
+        "bg-black/60 text-white rounded-full p-2 hover:bg-black/80 transition-colors active:scale-[0.98]",
         className
       )}
       onClick={(e) => {

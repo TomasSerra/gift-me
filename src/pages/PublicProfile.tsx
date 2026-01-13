@@ -58,9 +58,16 @@ export function PublicProfilePage() {
 
   const header = (
     <div className="flex items-center gap-3 p-4">
-      <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-        <ArrowLeft className="w-5 h-5" />
-      </Button>
+      {currentUser ? (
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+      ) : (
+        <Button variant="ghost" size="sm" onClick={() => navigate("/auth")}>
+          <UserPlus className="w-4 h-4 mr-1" />
+          Sign up
+        </Button>
+      )}
       <h1 className="text-lg font-semibold flex-1">Profile</h1>
       {profileUser && (
         <ShareButton

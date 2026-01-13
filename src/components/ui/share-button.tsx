@@ -38,7 +38,7 @@ export function ShareButton({
         type="button"
         onClick={handleShare}
         className={cn(
-          "p-2 rounded-full w-9 h-9 flex items-center justify-center hover:bg-accent transition-colors",
+          "p-2 rounded-full w-9 h-9 flex items-center justify-center hover:bg-accent transition-colors active:scale-[0.98]",
           className,
           "cursor-pointer"
         )}
@@ -54,7 +54,7 @@ export function ShareButton({
         type="button"
         onClick={handleShare}
         className={cn(
-          "bg-primary text-primary-foreground rounded-full w-12 h-12 flex items-center justify-center hover:bg-primary/90 transition-colors cursor-pointer",
+          "bg-primary text-primary-foreground rounded-full w-12 h-12 flex items-center justify-center hover:bg-primary/90 transition-colors active:scale-[0.98] cursor-pointer",
           className
         )}
       >
@@ -68,7 +68,7 @@ export function ShareButton({
       type="button"
       onClick={handleShare}
       className={cn(
-        "bg-black/60 text-white rounded-full w-9 h-9 flex items-center justify-center hover:bg-black/80 transition-colors cursor-pointer",
+        "bg-black/60 text-white rounded-full w-9 h-9 flex items-center justify-center hover:bg-black/80 transition-colors active:scale-[0.98] cursor-pointer",
         className
       )}
     >

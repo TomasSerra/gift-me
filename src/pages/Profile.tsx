@@ -6,11 +6,20 @@ import { EditProfileSheet } from "@/components/profile/EditProfileSheet";
 import { WishlistList } from "@/components/wishlist/WishlistList";
 import { Button } from "@/components/ui/button";
 import { ShareButton } from "@/components/ui/share-button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { LogOut } from "lucide-react";
 
 export function ProfilePage() {
   const { user, logout } = useAuth();
   const [editOpen, setEditOpen] = useState(false);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
 
   if (!user) return null;
 
@@ -22,7 +31,7 @@ export function ProfilePage() {
   const header = (
     <div className="flex items-center justify-between p-4">
       <h1 className="text-lg font-semibold">My Profile</h1>
-      <Button variant="ghost" size="icon" onClick={logout}>
+      <Button variant="ghost" size="icon" onClick={() => setLogoutDialogOpen(true)}>
         <LogOut className="w-5 h-5" />
       </Button>
     </div>
@@ -47,6 +56,25 @@ export function ProfilePage() {
         open={editOpen}
         onOpenChange={setEditOpen}
       />
+
+      <Dialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Log out</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to log out of your account?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLogoutDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={logout}>
+              Log out
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageContainer>
   );
 }

@@ -10,6 +10,15 @@ import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const getFaviconUrl = (url: string): string | null => {
+  try {
+    const urlObj = new URL(url);
+    return `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=32`;
+  } catch {
+    return null;
+  }
+};
+
 interface ActivityCardProps {
   activity: ActivityWithUser;
 }
@@ -19,6 +28,8 @@ export function ActivityCard({ activity }: ActivityCardProps) {
   const createdAt = activity.createdAt?.toDate() || new Date();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
+  const [faviconError, setFaviconError] = useState(false);
+  const faviconUrl = activity.itemLink ? getFaviconUrl(activity.itemLink) : null;
 
   // Support both new itemImages array and legacy itemImage field
   const images = activity.itemImages?.length
@@ -69,7 +80,7 @@ export function ActivityCard({ activity }: ActivityCardProps) {
   };
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden rounded-none border-x-0">
       {/* Header - User info */}
       <div
         className="flex items-center gap-3 p-3 cursor-pointer"
@@ -184,7 +195,16 @@ export function ActivityCard({ activity }: ActivityCardProps) {
             onClick={(e) => e.stopPropagation()}
           >
             <Button variant="outline" size="sm" className="w-full gap-2">
-              <ExternalLink className="w-4 h-4" />
+              {faviconUrl && !faviconError ? (
+                <img
+                  src={faviconUrl}
+                  alt=""
+                  className="w-4 h-4 rounded-sm"
+                  onError={() => setFaviconError(true)}
+                />
+              ) : (
+                <ExternalLink className="w-4 h-4" />
+              )}
               View product
             </Button>
           </a>
