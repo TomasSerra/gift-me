@@ -21,7 +21,7 @@ import {
 import { ShareButton } from "@/components/ui/share-button";
 import { useDeleteWishlistItem } from "@/hooks/useWishlist";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatPrice } from "@/lib/utils";
 import type { WishlistItem } from "@/types";
 
 interface WishlistGridItemProps {
@@ -62,13 +62,6 @@ export function WishlistGridItem({
   const handleDelete = async () => {
     await deleteMutation.mutateAsync(item.id);
     setDeleteDialogOpen(false);
-  };
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price);
   };
 
   const shareUrl = `${window.location.origin}/item/${item.id}`;
@@ -152,7 +145,7 @@ export function WishlistGridItem({
           )}
           {item.price && (
             <p className="text-sm text-primary font-semibold mt-1">
-              {formatPrice(item.price)}
+              {formatPrice(item.price, item.currency)}
             </p>
           )}
         </div>

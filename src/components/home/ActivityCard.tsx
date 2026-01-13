@@ -4,11 +4,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatRelativeTime } from "@/lib/utils";
+import { formatRelativeTime, formatPrice, cn } from "@/lib/utils";
 import type { ActivityWithUser } from "@/hooks/useActivityFeed";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 const getFaviconUrl = (url: string): string | null => {
   try {
@@ -67,13 +66,6 @@ export function ActivityCard({ activity }: ActivityCardProps) {
     preventScrollOnSwipe: true,
     trackMouse: false,
   });
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price);
-  };
 
   const handleItemClick = () => {
     navigate(`/item/${activity.wishlistItemId}`);
@@ -182,7 +174,7 @@ export function ActivityCard({ activity }: ActivityCardProps) {
           </div>
           {activity.itemPrice && (
             <span className="text-primary font-semibold whitespace-nowrap">
-              {formatPrice(activity.itemPrice)}
+              {formatPrice(activity.itemPrice, activity.itemCurrency)}
             </span>
           )}
         </div>

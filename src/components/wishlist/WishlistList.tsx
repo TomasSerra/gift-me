@@ -195,7 +195,7 @@ export function WishlistList({ userId, isOwner = false }: WishlistListProps) {
           {/* Grid view */}
           {viewMode === "grid" && (
             <DndContext
-              sensors={isReorderMode ? sensors : undefined}
+              sensors={sensors}
               collisionDetection={closestCenter}
               onDragEnd={handleDragEnd}
             >
@@ -222,7 +222,7 @@ export function WishlistList({ userId, isOwner = false }: WishlistListProps) {
           {/* List view */}
           {viewMode === "list" && (
             <DndContext
-              sensors={isReorderMode ? sensors : undefined}
+              sensors={sensors}
               collisionDetection={closestCenter}
               onDragEnd={handleDragEnd}
             >

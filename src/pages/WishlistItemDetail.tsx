@@ -29,7 +29,7 @@ import {
   PopoverContent,
   PopoverItem,
 } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { cn, formatPrice } from "@/lib/utils";
 import type { WishlistItem } from "@/types";
 
 async function fetchWishlistItem(itemId: string): Promise<WishlistItem | null> {
@@ -99,13 +99,6 @@ export function WishlistItemDetailPage() {
       // Refetch item data after edit form closes
       refetch();
     }
-  };
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price);
   };
 
   const ownerName = owner
@@ -257,7 +250,7 @@ export function WishlistItemDetailPage() {
           <h1 className="text-2xl font-bold">{item.name}</h1>
           {item.price && (
             <p className="text-xl text-primary font-semibold mt-1">
-              {formatPrice(item.price)}
+              {formatPrice(item.price, item.currency)}
             </p>
           )}
         </div>

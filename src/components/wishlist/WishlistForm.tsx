@@ -18,7 +18,8 @@ import {
 import { uploadMultipleImages, deleteMultipleImages } from "@/lib/storage";
 import { useToast } from "@/components/ui/toast";
 import { ImagePlus, X } from "lucide-react";
-import type { WishlistItem } from "@/types";
+import { cn } from "@/lib/utils";
+import type { WishlistItem, Currency } from "@/types";
 
 const wishlistItemSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -44,6 +45,7 @@ export function WishlistForm({
 }: WishlistFormProps) {
   const [images, setImages] = useState<string[]>([]);
   const [newImages, setNewImages] = useState<File[]>([]);
+  const [currency, setCurrency] = useState<Currency>("USD");
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { addToast } = useToast();
@@ -71,6 +73,7 @@ export function WishlistForm({
       });
       setImages(editItem?.images || []);
       setNewImages([]);
+      setCurrency(editItem?.currency || "USD");
     }
   }, [open, editItem, reset]);
 
@@ -136,6 +139,7 @@ export function WishlistForm({
         name: data.name,
         images: finalImages.length > 0 ? finalImages : [],
         price: data.price ? parseFloat(data.price) : undefined,
+        currency: data.price ? currency : undefined,
         description: data.description || undefined,
         link: data.link || undefined,
       };
@@ -226,12 +230,43 @@ export function WishlistForm({
             />
           </div>
 
-          <Input
-            label="Price (optional)"
-            type="number"
-            placeholder="e.g. 499"
-            {...register("price")}
-          />
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-left">Price (optional)</label>
+            <div className="flex gap-2">
+              <div className="flex bg-muted rounded-lg p-1 h-10">
+                <button
+                  type="button"
+                  onClick={() => setCurrency("USD")}
+                  className={cn(
+                    "px-3 rounded-md transition-colors text-sm font-medium",
+                    currency === "USD"
+                      ? "bg-background shadow-sm"
+                      : "hover:bg-background/50"
+                  )}
+                >
+                  USD
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrency("ARS")}
+                  className={cn(
+                    "px-3 rounded-md transition-colors text-sm font-medium",
+                    currency === "ARS"
+                      ? "bg-background shadow-sm"
+                      : "hover:bg-background/50"
+                  )}
+                >
+                  ARS
+                </button>
+              </div>
+              <Input
+                type="number"
+                placeholder="e.g. 499"
+                className="flex-1"
+                {...register("price")}
+              />
+            </div>
+          </div>
 
           <Input
             label="Description (optional)"

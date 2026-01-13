@@ -1,5 +1,7 @@
 import type { Timestamp } from "firebase/firestore";
 
+export type Currency = "USD" | "ARS";
+
 export interface User {
   id: string;
   email: string;
@@ -17,6 +19,7 @@ export interface WishlistItem {
   name: string;
   images?: string[];
   price?: number;
+  currency?: Currency;
   description?: string;
   link?: string;
   priority: number;
@@ -47,6 +50,7 @@ export interface ActivityItem {
   itemDescription?: string;
   itemImages?: string[];
   itemPrice?: number;
+  itemCurrency?: Currency;
   itemLink?: string;
   createdAt: Timestamp;
 }

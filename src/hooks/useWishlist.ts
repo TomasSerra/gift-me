@@ -19,13 +19,14 @@ import { deleteMultipleImages } from "@/lib/storage";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { queryKeys } from "@/lib/queryKeys";
-import type { WishlistItem } from "@/types";
+import type { WishlistItem, Currency } from "@/types";
 import { useEffect, useState } from "react";
 
 interface CreateWishlistItemData {
   name: string;
   images?: string[];
   price?: number;
+  currency?: Currency;
   description?: string;
   link?: string;
 }
@@ -89,6 +90,7 @@ export function useCreateWishlistItem(userId: string) {
         name: data.name,
         images: data.images || [],
         price: data.price || null,
+        currency: data.currency || null,
         description: data.description || null,
         link: data.link || null,
         priority,
@@ -107,6 +109,7 @@ export function useCreateWishlistItem(userId: string) {
         itemDescription: data.description || null,
         itemImages: data.images || [],
         itemPrice: data.price || null,
+        itemCurrency: data.currency || null,
         itemLink: data.link || null,
         createdAt: serverTimestamp(),
       });
@@ -136,10 +139,14 @@ export function useUpdateWishlistItem() {
       itemId: string;
       data: UpdateWishlistItemData;
     }) => {
+      // Convert undefined values to null for Firebase
       const updateData: Record<string, unknown> = {
-        ...data,
         updatedAt: serverTimestamp(),
       };
+
+      for (const [key, value] of Object.entries(data)) {
+        updateData[key] = value === undefined ? null : value;
+      }
 
       await updateDoc(doc(db, "wishlistItems", itemId), updateData);
     },

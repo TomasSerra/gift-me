@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import type { Currency } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -67,4 +68,19 @@ export function formatRelativeTime(date: Date): string {
     day: "numeric",
     month: "short",
   });
+}
+
+export function formatPrice(price: number, currency: Currency = "USD"): string {
+  if (currency === "ARS") {
+    const formatted = new Intl.NumberFormat("es-AR", {
+      maximumFractionDigits: 0,
+    }).format(price);
+    return `${formatted} ARS`;
+  }
+
+  const formatted = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(price);
+  return `${formatted} USD`;
 }

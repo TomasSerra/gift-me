@@ -29,7 +29,7 @@ import {
   ExternalLink,
   Share2,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatPrice } from "@/lib/utils";
 import type { WishlistItem } from "@/types";
 
 interface WishlistItemCardProps {
@@ -76,13 +76,6 @@ export function WishlistItemCard({
   const handleDelete = async () => {
     await deleteMutation.mutateAsync(item.id);
     setDeleteDialogOpen(false);
-  };
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price);
   };
 
   const shareUrl = `${window.location.origin}/item/${item.id}`;
@@ -136,7 +129,7 @@ export function WishlistItemCard({
                   <h3 className="font-medium truncate">{item.name}</h3>
                   {item.price && (
                     <p className="text-sm text-primary font-semibold">
-                      {formatPrice(item.price)}
+                      {formatPrice(item.price, item.currency)}
                     </p>
                   )}
                   {item.description && (
