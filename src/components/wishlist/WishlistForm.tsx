@@ -9,7 +9,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input, Textarea } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import {
   useCreateWishlistItem,
@@ -320,9 +320,10 @@ export function WishlistForm({
             </div>
           </div>
 
-          <Input
+          <Textarea
             label="Description (optional)"
             placeholder="e.g. Black color, digital version"
+            rows={3}
             {...register("description")}
           />
 

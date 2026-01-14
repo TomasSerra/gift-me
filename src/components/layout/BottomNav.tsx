@@ -4,8 +4,8 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { to: "/", icon: Home, label: "Home" },
-  { to: "/profile", icon: User, label: "Profile" },
   { to: "/friends", icon: Users, label: "Friends" },
+  { to: "/profile", icon: User, label: "Profile" },
 ];
 
 // Detect if app is installed as PWA

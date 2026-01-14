@@ -133,7 +133,7 @@ export function WishlistItemCard({
                     </p>
                   )}
                   {item.description && (
-                    <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                    <p className="text-xs text-muted-foreground line-clamp-2 mt-1 whitespace-pre-line">
                       {item.description}
                     </p>
                   )}

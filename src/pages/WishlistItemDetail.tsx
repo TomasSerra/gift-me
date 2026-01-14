@@ -256,7 +256,7 @@ export function WishlistItemDetailPage() {
         </div>
 
         {item.description && (
-          <p className="text-muted-foreground">{item.description}</p>
+          <p className="text-muted-foreground whitespace-pre-line">{item.description}</p>
         )}
 
         {item.link && (

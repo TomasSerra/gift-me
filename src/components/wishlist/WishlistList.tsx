@@ -21,7 +21,7 @@ import { WishlistGridItem } from "./WishlistGridItem";
 import { WishlistForm } from "./WishlistForm";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Gift, LayoutGrid, List, ArrowUpDown, Check } from "lucide-react";
+import { Plus, Gift, LayoutGrid, List, ArrowUpDown, Check, SlidersHorizontal, X } from "lucide-react";
 import type { WishlistItem } from "@/types";
 import { cn } from "@/lib/utils";
 

@@ -136,7 +136,7 @@ const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
         <div
           ref={ref}
           className={cn(
-            "fixed z-50 bg-background p-6 shadow-xl safe-area-bottom transition-transform duration-300 ease-out",
+            "fixed z-50 bg-background p-6 pb-10 shadow-xl safe-area-bottom transition-transform duration-300 ease-out",
             sideClasses[side],
             className
           )}

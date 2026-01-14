@@ -51,4 +51,50 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
 );
 Input.displayName = "Input";
 
-export { Input };
+export interface TextareaProps
+  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  label?: string;
+  error?: string;
+  hint?: string;
+}
+
+const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({ className, label, error, hint, id, ...props }, ref) => {
+    const textareaId = id || React.useId();
+
+    const textareaElement = (
+      <textarea
+        id={textareaId}
+        className={cn(
+          "flex min-h-24 w-full rounded-xl border border-input bg-background px-4 py-3 text-base transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 resize-none",
+          error && "border-destructive focus-visible:ring-destructive",
+          className
+        )}
+        ref={ref}
+        {...props}
+      />
+    );
+
+    if (!label && !error && !hint) {
+      return textareaElement;
+    }
+
+    return (
+      <div className="flex flex-col gap-2">
+        {label && (
+          <label htmlFor={textareaId} className="text-sm font-medium text-left">
+            {label}
+          </label>
+        )}
+        {textareaElement}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        {hint && !error && (
+          <p className="text-xs text-muted-foreground">{hint}</p>
+        )}
+      </div>
+    );
+  }
+);
+Textarea.displayName = "Textarea";
+
+export { Input, Textarea };

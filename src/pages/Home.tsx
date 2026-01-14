@@ -1,10 +1,14 @@
+import { useState } from "react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { EventCarousel } from "@/components/home/EventCarousel";
 import { ActivityFeed } from "@/components/home/ActivityFeed";
+import { WishlistForm } from "@/components/wishlist/WishlistForm";
 import { useAuth } from "@/contexts/AuthContext";
+import { Plus } from "lucide-react";
 
 export function HomePage() {
   const { user } = useAuth();
+  const [formOpen, setFormOpen] = useState(false);
 
   const header = (
     <div className="flex items-center gap-3 p-4">
@@ -24,6 +28,22 @@ export function HomePage() {
         <EventCarousel />
         <ActivityFeed />
       </div>
+
+      {/* Floating Action Button */}
+      <button
+        onClick={() => setFormOpen(true)}
+        className="fixed right-4 bottom-32 z-50 w-16 h-16 bg-primary text-primary-foreground rounded-full shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-90 transition-transform duration-150"
+      >
+        <Plus className="w-7 h-7" strokeWidth={2.5} />
+      </button>
+
+      {user && (
+        <WishlistForm
+          userId={user.id}
+          open={formOpen}
+          onOpenChange={setFormOpen}
+        />
+      )}
     </PageContainer>
   );
 }

@@ -139,7 +139,7 @@ export function WishlistGridItem({
         <div className="p-3">
           <h3 className="font-medium text-sm truncate">{item.name}</h3>
           {item.description && (
-            <p className="text-xs text-muted-foreground line-clamp-2">
+            <p className="text-xs text-muted-foreground line-clamp-2 whitespace-pre-line">
               {item.description}
             </p>
           )}
