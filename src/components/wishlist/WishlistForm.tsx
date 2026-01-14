@@ -17,7 +17,7 @@ import {
 } from "@/hooks/useWishlist";
 import { uploadMultipleImages, deleteMultipleImages } from "@/lib/storage";
 import { useToast } from "@/components/ui/toast";
-import { ImagePlus, X } from "lucide-react";
+import { ImagePlus, X, ClipboardPaste } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { WishlistItem, Currency } from "@/types";
 
@@ -94,6 +94,41 @@ export function WishlistForm({
     });
 
     setNewImages((prev) => [...prev, ...files]);
+  };
+
+  const handlePasteFromClipboard = async () => {
+    try {
+      const clipboardItems = await navigator.clipboard.read();
+
+      for (const item of clipboardItems) {
+        const imageType = item.types.find((type) => type.startsWith("image/"));
+        if (imageType) {
+          if (images.length + newImages.length >= 5) {
+            addToast("Maximum 5 images", "error");
+            return;
+          }
+
+          const blob = await item.getType(imageType);
+          const file = new File([blob], `pasted-image-${Date.now()}.png`, {
+            type: imageType,
+          });
+
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            setImages((prev) => [...prev, e.target?.result as string]);
+          };
+          reader.readAsDataURL(file);
+
+          setNewImages((prev) => [...prev, file]);
+          return;
+        }
+      }
+
+      addToast("No image found in clipboard", "error");
+    } catch (error) {
+      console.error("Error reading clipboard:", error);
+      addToast("Could not access clipboard", "error");
+    }
   };
 
   const removeImage = (index: number) => {
@@ -211,13 +246,24 @@ export function WishlistForm({
               ))}
 
               {images.length < 5 && (
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-20 h-20 rounded-xl border-2 border-dashed border-muted-foreground/30 flex items-center justify-center hover:border-primary transition-colors"
-                >
-                  <ImagePlus className="w-6 h-6 text-muted-foreground" />
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-20 h-20 rounded-xl border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center gap-1 hover:border-primary transition-colors"
+                  >
+                    <ImagePlus className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-[10px] text-muted-foreground">Gallery</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePasteFromClipboard}
+                    className="w-20 h-20 rounded-xl border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center gap-1 hover:border-primary transition-colors"
+                  >
+                    <ClipboardPaste className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-[10px] text-muted-foreground">Paste</span>
+                  </button>
+                </>
               )}
             </div>
             <input
