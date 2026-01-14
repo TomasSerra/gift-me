@@ -306,10 +306,16 @@ export function WishlistForm({
                 </button>
               </div>
               <Input
-                type="number"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 placeholder="e.g. 499"
                 className="flex-1"
-                {...register("price")}
+                {...register("price", {
+                  onChange: (e) => {
+                    e.target.value = e.target.value.replace(/[^0-9]/g, "");
+                  },
+                })}
               />
             </div>
           </div>
