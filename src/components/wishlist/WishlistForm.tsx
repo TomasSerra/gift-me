@@ -47,6 +47,7 @@ export function WishlistForm({
   const [newImages, setNewImages] = useState<File[]>([]);
   const [currency, setCurrency] = useState<Currency>("USD");
   const [isUploading, setIsUploading] = useState(false);
+  const [clipboardHasImage, setClipboardHasImage] = useState<boolean | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { addToast } = useToast();
 
@@ -76,6 +77,43 @@ export function WishlistForm({
       setCurrency(editItem?.currency || "USD");
     }
   }, [open, editItem, reset]);
+
+  // Check clipboard for images (only in secure contexts: HTTPS or localhost)
+  useEffect(() => {
+    if (!window.isSecureContext) {
+      setClipboardHasImage(null);
+      return;
+    }
+
+    const checkClipboard = async () => {
+      try {
+        const clipboardItems = await navigator.clipboard.read();
+        const hasImage = clipboardItems.some((item) =>
+          item.types.some((type) => type.startsWith("image/"))
+        );
+        setClipboardHasImage(hasImage);
+      } catch {
+        setClipboardHasImage(false);
+      }
+    };
+
+    if (open) {
+      checkClipboard();
+
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === "visible") {
+          checkClipboard();
+        }
+      };
+
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+      return () => {
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+      };
+    } else {
+      setClipboardHasImage(null);
+    }
+  }, [open]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -125,9 +163,8 @@ export function WishlistForm({
       }
 
       addToast("No image found in clipboard", "error");
-    } catch (error) {
-      console.error("Error reading clipboard:", error);
-      addToast("Could not access clipboard", "error");
+    } catch {
+      // User cancelled the paste or clipboard access was denied - silently ignore
     }
   };
 
@@ -258,7 +295,13 @@ export function WishlistForm({
                   <button
                     type="button"
                     onClick={handlePasteFromClipboard}
-                    className="w-20 h-20 rounded-xl border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center gap-1 hover:border-primary transition-colors"
+                    disabled={clipboardHasImage === false}
+                    className={cn(
+                      "w-20 h-20 rounded-xl border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center gap-1 transition-colors",
+                      clipboardHasImage === false
+                        ? "opacity-40 cursor-not-allowed"
+                        : "hover:border-primary"
+                    )}
                   >
                     <ClipboardPaste className="w-5 h-5 text-muted-foreground" />
                     <span className="text-[10px] text-muted-foreground">Paste</span>

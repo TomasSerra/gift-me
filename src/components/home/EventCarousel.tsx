@@ -47,7 +47,8 @@ export function EventCarousel() {
                   {birthday.user.firstName ? `${birthday.user.firstName} ${birthday.user.lastName || ""}`.trim() : birthday.user.username}
                 </p>
 
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
                   {format(birthday.date, "MMM d", { locale: enUS })}
                 </p>
 

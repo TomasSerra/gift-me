@@ -42,21 +42,24 @@ export function ActivityFeed() {
     }
   }, []);
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isPulling || window.scrollY > 0) {
-      setPullDistance(0);
-      return;
-    }
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (!isPulling || window.scrollY > 0) {
+        setPullDistance(0);
+        return;
+      }
 
-    const currentY = e.touches[0].clientY;
-    const diff = currentY - startY.current;
+      const currentY = e.touches[0].clientY;
+      const diff = currentY - startY.current;
 
-    if (diff > 0) {
-      // Apply resistance to pull
-      const resistance = 0.4;
-      setPullDistance(Math.min(diff * resistance, PULL_THRESHOLD * 1.5));
-    }
-  }, [isPulling]);
+      if (diff > 0) {
+        // Apply resistance to pull
+        const resistance = 0.4;
+        setPullDistance(Math.min(diff * resistance, PULL_THRESHOLD * 1.5));
+      }
+    },
+    [isPulling]
+  );
 
   const handleTouchEnd = useCallback(async () => {
     if (pullDistance >= PULL_THRESHOLD && !isRefetching) {
@@ -120,7 +123,7 @@ export function ActivityFeed() {
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className="space-y-0"
+      className="flex flex-col gap-2"
     >
       {/* Pull-to-refresh indicator */}
       <div
