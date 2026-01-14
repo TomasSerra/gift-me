@@ -1,14 +1,66 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { EventCarousel } from "@/components/home/EventCarousel";
 import { ActivityFeed } from "@/components/home/ActivityFeed";
 import { WishlistForm } from "@/components/wishlist/WishlistForm";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const PULL_THRESHOLD = 80;
 
 export function HomePage() {
   const { user } = useAuth();
   const [formOpen, setFormOpen] = useState(false);
+
+  // Pull-to-refresh state
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isPulling, setIsPulling] = useState(false);
+  const [isRefetching, setIsRefetching] = useState(false);
+  const startY = useRef(0);
+  const refetchRef = useRef<(() => Promise<unknown>) | null>(null);
+
+  const handleRefetchReady = useCallback(
+    (refetch: () => Promise<unknown>, refetching: boolean) => {
+      refetchRef.current = refetch;
+      setIsRefetching(refetching);
+    },
+    []
+  );
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (window.scrollY === 0) {
+      startY.current = e.touches[0].clientY;
+      setIsPulling(true);
+    }
+  }, []);
+
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (!isPulling || window.scrollY > 0) {
+        setPullDistance(0);
+        return;
+      }
+
+      const currentY = e.touches[0].clientY;
+      const diff = currentY - startY.current;
+
+      if (diff > 0) {
+        // Apply resistance to pull
+        const resistance = 0.4;
+        setPullDistance(Math.min(diff * resistance, PULL_THRESHOLD * 1.5));
+      }
+    },
+    [isPulling]
+  );
+
+  const handleTouchEnd = useCallback(async () => {
+    if (pullDistance >= PULL_THRESHOLD && !isRefetching && refetchRef.current) {
+      await refetchRef.current();
+    }
+    setPullDistance(0);
+    setIsPulling(false);
+  }, [pullDistance, isRefetching]);
 
   const header = (
     <div className="flex items-center gap-3 p-4">
@@ -24,9 +76,31 @@ export function HomePage() {
 
   return (
     <PageContainer header={header} noPadding>
-      <div className="space-y-6 py-4">
+      <div
+        className="space-y-6 py-4"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Pull-to-refresh indicator */}
+        <div
+          className="flex justify-center items-center overflow-hidden transition-all duration-200 -mt-4"
+          style={{ height: isRefetching ? 48 : pullDistance }}
+        >
+          <RefreshCw
+            className={cn(
+              "w-6 h-6 text-muted-foreground transition-transform",
+              isRefetching && "animate-spin",
+              pullDistance >= PULL_THRESHOLD && "text-primary"
+            )}
+            style={{
+              transform: `rotate(${Math.min(pullDistance * 2, 180)}deg)`,
+            }}
+          />
+        </div>
+
         <EventCarousel />
-        <ActivityFeed />
+        <ActivityFeed onRefetchReady={handleRefetchReady} />
       </div>
 
       {/* Floating Action Button */}

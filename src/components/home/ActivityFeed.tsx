@@ -1,18 +1,19 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect } from "react";
 import { useInView } from "react-intersection-observer";
 import { useActivityFeed } from "@/hooks/useActivityFeed";
 import { ActivityCard } from "./ActivityCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { Inbox, Users, RefreshCw } from "lucide-react";
+import { Inbox, Users } from "lucide-react";
 import { useFriends } from "@/hooks/useFriends";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { cn } from "@/lib/utils";
 
-const PULL_THRESHOLD = 80;
+interface ActivityFeedProps {
+  onRefetchReady?: (refetch: () => Promise<unknown>, isRefetching: boolean) => void;
+}
 
-export function ActivityFeed() {
+export function ActivityFeed({ onRefetchReady }: ActivityFeedProps) {
   const {
     activities,
     loading,
@@ -29,45 +30,10 @@ export function ActivityFeed() {
     threshold: 0,
   });
 
-  // Pull-to-refresh state
-  const [pullDistance, setPullDistance] = useState(0);
-  const [isPulling, setIsPulling] = useState(false);
-  const startY = useRef(0);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (window.scrollY === 0) {
-      startY.current = e.touches[0].clientY;
-      setIsPulling(true);
-    }
-  }, []);
-
-  const handleTouchMove = useCallback(
-    (e: React.TouchEvent) => {
-      if (!isPulling || window.scrollY > 0) {
-        setPullDistance(0);
-        return;
-      }
-
-      const currentY = e.touches[0].clientY;
-      const diff = currentY - startY.current;
-
-      if (diff > 0) {
-        // Apply resistance to pull
-        const resistance = 0.4;
-        setPullDistance(Math.min(diff * resistance, PULL_THRESHOLD * 1.5));
-      }
-    },
-    [isPulling]
-  );
-
-  const handleTouchEnd = useCallback(async () => {
-    if (pullDistance >= PULL_THRESHOLD && !isRefetching) {
-      await refetch();
-    }
-    setPullDistance(0);
-    setIsPulling(false);
-  }, [pullDistance, isRefetching, refetch]);
+  // Expose refetch to parent
+  useEffect(() => {
+    onRefetchReady?.(refetch, isRefetching);
+  }, [refetch, isRefetching, onRefetchReady]);
 
   useEffect(() => {
     if (inView && hasNextPage && !isFetchingNextPage) {
@@ -137,30 +103,7 @@ export function ActivityFeed() {
   }
 
   return (
-    <div
-      ref={containerRef}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      className="flex flex-col gap-2"
-    >
-      {/* Pull-to-refresh indicator */}
-      <div
-        className="flex justify-center items-center overflow-hidden transition-all duration-200"
-        style={{ height: isRefetching ? 48 : pullDistance }}
-      >
-        <RefreshCw
-          className={cn(
-            "w-6 h-6 text-muted-foreground transition-transform",
-            isRefetching && "animate-spin",
-            pullDistance >= PULL_THRESHOLD && "text-primary"
-          )}
-          style={{
-            transform: `rotate(${Math.min(pullDistance * 2, 180)}deg)`,
-          }}
-        />
-      </div>
-
+    <div className="flex flex-col gap-2">
       <h2 className="font-semibold px-4 mb-3">Recent Activity</h2>
       {activities.map((activity) => (
         <ActivityCard key={activity.id} activity={activity} />
