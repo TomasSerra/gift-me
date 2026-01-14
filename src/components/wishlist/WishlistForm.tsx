@@ -3,6 +3,23 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   Sheet,
   SheetContent,
   SheetHeader,
@@ -30,6 +47,65 @@ const wishlistItemSchema = z.object({
 
 type WishlistItemFormData = z.infer<typeof wishlistItemSchema>;
 
+interface ImageItem {
+  id: string;
+  src: string;
+  file: File | null; // null if existing image
+}
+
+interface SortableImageProps {
+  image: ImageItem;
+  onRemove: () => void;
+  disabled: boolean;
+}
+
+function SortableImage({ image, onRemove, disabled }: SortableImageProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: image.id, disabled });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "relative w-20 h-20 rounded-xl overflow-hidden touch-none",
+        isDragging && "opacity-50 z-10"
+      )}
+      {...attributes}
+      {...listeners}
+    >
+      <img
+        src={image.src}
+        alt="Image"
+        className="w-full h-full object-cover pointer-events-none"
+      />
+      {!disabled && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          className="absolute top-1 right-1 bg-black/50 rounded-full p-1"
+        >
+          <X className="w-3 h-3 text-white" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 interface WishlistFormProps {
   userId: string;
   open: boolean;
@@ -43,8 +119,7 @@ export function WishlistForm({
   onOpenChange,
   editItem,
 }: WishlistFormProps) {
-  const [images, setImages] = useState<string[]>([]);
-  const [newImages, setNewImages] = useState<File[]>([]);
+  const [imageItems, setImageItems] = useState<ImageItem[]>([]);
   const [currency, setCurrency] = useState<Currency>("USD");
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -52,6 +127,23 @@ export function WishlistForm({
 
   const createMutation = useCreateWishlistItem(userId);
   const updateMutation = useUpdateWishlistItem();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 150,
+        tolerance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const {
     register,
@@ -71,29 +163,41 @@ export function WishlistForm({
         description: editItem?.description || "",
         link: editItem?.link || "",
       });
-      setImages(editItem?.images || []);
-      setNewImages([]);
+      // Convert existing images to ImageItem format
+      const existingImages: ImageItem[] = (editItem?.images || []).map(
+        (src, index) => ({
+          id: `existing-${index}-${src}`,
+          src,
+          file: null,
+        })
+      );
+      setImageItems(existingImages);
       setCurrency(editItem?.currency || "USD");
     }
   }, [open, editItem, reset]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (files.length + images.length + newImages.length > 5) {
+    if (files.length + imageItems.length > 5) {
       alert("Maximum 5 images");
       return;
     }
 
-    // Local image preview
     files.forEach((file) => {
       const reader = new FileReader();
       reader.onload = (e) => {
-        setImages((prev) => [...prev, e.target?.result as string]);
+        const newImage: ImageItem = {
+          id: `new-${Date.now()}-${Math.random()}`,
+          src: e.target?.result as string,
+          file,
+        };
+        setImageItems((prev) => [...prev, newImage]);
       };
       reader.readAsDataURL(file);
     });
 
-    setNewImages((prev) => [...prev, ...files]);
+    // Reset input so the same file can be selected again
+    e.target.value = "";
   };
 
   const handlePasteFromClipboard = async () => {
@@ -103,7 +207,7 @@ export function WishlistForm({
       for (const item of clipboardItems) {
         const imageType = item.types.find((type) => type.startsWith("image/"));
         if (imageType) {
-          if (images.length + newImages.length >= 5) {
+          if (imageItems.length >= 5) {
             addToast("Maximum 5 images", "error");
             return;
           }
@@ -115,11 +219,14 @@ export function WishlistForm({
 
           const reader = new FileReader();
           reader.onload = (e) => {
-            setImages((prev) => [...prev, e.target?.result as string]);
+            const newImage: ImageItem = {
+              id: `new-${Date.now()}-${Math.random()}`,
+              src: e.target?.result as string,
+              file,
+            };
+            setImageItems((prev) => [...prev, newImage]);
           };
           reader.readAsDataURL(file);
-
-          setNewImages((prev) => [...prev, file]);
           return;
         }
       }
@@ -130,14 +237,26 @@ export function WishlistForm({
     }
   };
 
-  const removeImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
-    // If it's a new image (not existing), also remove from newImages
-    const existingCount = editItem?.images?.length || 0;
-    if (index >= existingCount) {
-      setNewImages((prev) =>
-        prev.filter((_, i) => i !== index - existingCount)
-      );
+  const removeImage = (id: string) => {
+    setImageItems((prev) => prev.filter((img) => img.id !== id));
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setImageItems((prev) => {
+        const oldIndex = prev.findIndex((img) => img.id === active.id);
+        const newIndex = prev.findIndex((img) => img.id === over.id);
+
+        if (oldIndex !== -1 && newIndex !== -1) {
+          const newItems = [...prev];
+          const [movedItem] = newItems.splice(oldIndex, 1);
+          newItems.splice(newIndex, 0, movedItem);
+          return newItems;
+        }
+        return prev;
+      });
     }
   };
 
@@ -145,15 +264,15 @@ export function WishlistForm({
     setIsUploading(true);
 
     try {
-      // Keep only existing images that weren't removed
       const existingImages = editItem?.images || [];
-      const keptExistingImages = existingImages.filter((img) =>
-        images.includes(img)
-      );
 
-      // Find images that were removed (to delete from storage)
+      // Find existing images that were removed
+      const keptExistingUrls = imageItems
+        .filter((img) => img.file === null)
+        .map((img) => img.src);
+
       const removedImages = existingImages.filter(
-        (img) => !images.includes(img)
+        (url) => !keptExistingUrls.includes(url)
       );
 
       // Delete removed images from storage
@@ -161,13 +280,25 @@ export function WishlistForm({
         await deleteMultipleImages(removedImages);
       }
 
-      // Upload new images if any
+      // Upload new images
+      const newFiles = imageItems
+        .filter((img) => img.file !== null)
+        .map((img) => img.file!);
+
       const uploadedUrls =
-        newImages.length > 0
-          ? await uploadMultipleImages(userId, newImages)
+        newFiles.length > 0
+          ? await uploadMultipleImages(userId, newFiles)
           : [];
 
-      const finalImages = [...keptExistingImages, ...uploadedUrls];
+      // Build final images array in the correct order
+      let uploadIndex = 0;
+      const finalImages = imageItems.map((img) => {
+        if (img.file === null) {
+          return img.src; // existing image URL
+        } else {
+          return uploadedUrls[uploadIndex++]; // new uploaded URL
+        }
+      });
 
       const itemData = {
         name: data.name,
@@ -218,53 +349,60 @@ export function WishlistForm({
             label="Name *"
             placeholder="e.g. PlayStation 5"
             error={errors.name?.message}
+            disabled={isLoading}
             {...register("name")}
           />
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-left">Images (max. 5)</label>
-            <div className="flex flex-wrap gap-2">
-              {images.map((img, index) => (
-                <div
-                  key={index}
-                  className="relative w-20 h-20 rounded-xl overflow-hidden"
-                >
-                  <img
-                    src={img}
-                    alt={`Image ${index + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(index)}
-                    className="absolute top-1 right-1 bg-black/50 rounded-full p-1"
-                  >
-                    <X className="w-3 h-3 text-white" />
-                  </button>
-                </div>
-              ))}
+            <label className="text-sm font-medium text-left">
+              Images (max. 5)
+            </label>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={imageItems.map((img) => img.id)}
+                strategy={rectSortingStrategy}
+              >
+                <div className="flex flex-wrap gap-2">
+                  {imageItems.map((img) => (
+                    <SortableImage
+                      key={img.id}
+                      image={img}
+                      onRemove={() => removeImage(img.id)}
+                      disabled={isLoading}
+                    />
+                  ))}
 
-              {images.length < 5 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-20 h-20 rounded-xl border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center gap-1 hover:border-primary transition-colors"
-                  >
-                    <ImagePlus className="w-5 h-5 text-muted-foreground" />
-                    <span className="text-[10px] text-muted-foreground">Gallery</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handlePasteFromClipboard}
-                    className="w-20 h-20 rounded-xl border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center gap-1 hover:border-primary transition-colors"
-                  >
-                    <ClipboardPaste className="w-5 h-5 text-muted-foreground" />
-                    <span className="text-[10px] text-muted-foreground">Paste</span>
-                  </button>
-                </>
-              )}
-            </div>
+                  {imageItems.length < 5 && !isLoading && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-20 h-20 rounded-xl border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center gap-1 hover:border-primary transition-colors"
+                      >
+                        <ImagePlus className="w-5 h-5 text-muted-foreground" />
+                        <span className="text-[10px] text-muted-foreground">
+                          Gallery
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handlePasteFromClipboard}
+                        className="w-20 h-20 rounded-xl border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center gap-1 hover:border-primary transition-colors"
+                      >
+                        <ClipboardPaste className="w-5 h-5 text-muted-foreground" />
+                        <span className="text-[10px] text-muted-foreground">
+                          Paste
+                        </span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              </SortableContext>
+            </DndContext>
             <input
               ref={fileInputRef}
               type="file"
@@ -276,17 +414,21 @@ export function WishlistForm({
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-left">Price (optional)</label>
+            <label className="text-sm font-medium text-left">
+              Price (optional)
+            </label>
             <div className="flex gap-2">
               <div className="flex bg-muted rounded-lg p-1 h-10">
                 <button
                   type="button"
                   onClick={() => setCurrency("USD")}
+                  disabled={isLoading}
                   className={cn(
                     "px-3 rounded-md transition-colors text-sm font-medium",
                     currency === "USD"
                       ? "bg-background shadow-sm"
-                      : "hover:bg-background/50"
+                      : "hover:bg-background/50",
+                    isLoading && "opacity-50 cursor-not-allowed"
                   )}
                 >
                   USD
@@ -294,11 +436,13 @@ export function WishlistForm({
                 <button
                   type="button"
                   onClick={() => setCurrency("ARS")}
+                  disabled={isLoading}
                   className={cn(
                     "px-3 rounded-md transition-colors text-sm font-medium",
                     currency === "ARS"
                       ? "bg-background shadow-sm"
-                      : "hover:bg-background/50"
+                      : "hover:bg-background/50",
+                    isLoading && "opacity-50 cursor-not-allowed"
                   )}
                 >
                   ARS
@@ -310,6 +454,7 @@ export function WishlistForm({
                 pattern="[0-9]*"
                 placeholder="e.g. 499"
                 className="flex-1"
+                disabled={isLoading}
                 {...register("price", {
                   onChange: (e) => {
                     e.target.value = e.target.value.replace(/[^0-9]/g, "");
@@ -323,6 +468,7 @@ export function WishlistForm({
             label="Description (optional)"
             placeholder="e.g. Black color, digital version"
             rows={3}
+            disabled={isLoading}
             {...register("description")}
           />
 
@@ -331,20 +477,12 @@ export function WishlistForm({
             type="url"
             placeholder="https://..."
             error={errors.link?.message}
+            disabled={isLoading}
             {...register("link")}
           />
 
-          <div className="flex gap-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1"
-              onClick={handleClose}
-              disabled={isLoading}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" className="flex-1" disabled={isLoading}>
+          <div className="pt-4">
+            <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (
                 <Spinner size="sm" className="text-white" />
               ) : editItem ? (

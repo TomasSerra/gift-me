@@ -34,17 +34,28 @@ export function FriendsList({ filter = "" }: FriendsListProps) {
     });
   }, [friends, filter]);
 
-  if (loading) {
+  // Only show skeletons on initial load (loading + no data)
+  if (loading && friends.length === 0) {
     return (
       <div className="space-y-2">
         {[1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-16 w-full" />
+          <Card key={i}>
+            <CardContent className="p-3">
+              <div className="flex items-center gap-3">
+                <Skeleton className="w-10 h-10 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         ))}
       </div>
     );
   }
 
-  if (friends.length === 0) {
+  if (!loading && friends.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">

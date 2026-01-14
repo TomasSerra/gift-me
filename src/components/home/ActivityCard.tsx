@@ -46,23 +46,30 @@ export function ActivityCard({ activity }: ActivityCardProps) {
     setLoadedImages((prev) => new Set(prev).add(currentImage));
   };
 
+  const isFirst = currentImageIndex === 0;
+  const isLast = currentImageIndex === images.length - 1;
+
   const goToPrevious = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+    if (!isFirst) {
+      setCurrentImageIndex((prev) => prev - 1);
+    }
   };
 
   const goToNext = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+    if (!isLast) {
+      setCurrentImageIndex((prev) => prev + 1);
+    }
   };
 
   const swipeHandlers = useSwipeable({
-    onSwipedLeft: () => setCurrentImageIndex((prev) =>
-      prev === images.length - 1 ? 0 : prev + 1
-    ),
-    onSwipedRight: () => setCurrentImageIndex((prev) =>
-      prev === 0 ? images.length - 1 : prev - 1
-    ),
+    onSwipedLeft: () => {
+      if (!isLast) setCurrentImageIndex((prev) => prev + 1);
+    },
+    onSwipedRight: () => {
+      if (!isFirst) setCurrentImageIndex((prev) => prev - 1);
+    },
     preventScrollOnSwipe: true,
     trackMouse: false,
   });
@@ -115,18 +122,22 @@ export function ActivityCard({ activity }: ActivityCardProps) {
 
           {hasMultipleImages && (
             <>
-              <button
-                onClick={goToPrevious}
-                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1.5 hover:bg-black/70 transition-colors"
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </button>
-              <button
-                onClick={goToNext}
-                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1.5 hover:bg-black/70 transition-colors"
-              >
-                <ChevronRight className="h-5 w-5" />
-              </button>
+              {!isFirst && (
+                <button
+                  onClick={goToPrevious}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1.5 hover:bg-black/70 transition-colors"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+              )}
+              {!isLast && (
+                <button
+                  onClick={goToNext}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1.5 hover:bg-black/70 transition-colors"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              )}
 
               {/* Dots indicator */}
               <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">

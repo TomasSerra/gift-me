@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   DndContext,
   closestCenter,
@@ -8,6 +8,7 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -39,7 +40,23 @@ export function WishlistList({ userId, isOwner = false }: WishlistListProps) {
   const [editingItem, setEditingItem] = useState<WishlistItem | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [isReorderMode, setIsReorderMode] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const isClosingRef = useRef(false);
+
+  // Prevent body scroll while dragging
+  useEffect(() => {
+    if (isDragging) {
+      document.body.style.overflow = "hidden";
+      document.body.style.touchAction = "none";
+    } else {
+      document.body.style.overflow = "";
+      document.body.style.touchAction = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.touchAction = "";
+    };
+  }, [isDragging]);
 
   // DnD sensors - only active when in reorder mode
   const sensors = useSensors(
@@ -65,7 +82,12 @@ export function WishlistList({ userId, isOwner = false }: WishlistListProps) {
     setIsReorderMode(false);
   };
 
+  const handleDragStart = (_event: DragStartEvent) => {
+    setIsDragging(true);
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
+    setIsDragging(false);
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
@@ -197,6 +219,7 @@ export function WishlistList({ userId, isOwner = false }: WishlistListProps) {
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
             >
               <SortableContext
@@ -224,6 +247,7 @@ export function WishlistList({ userId, isOwner = false }: WishlistListProps) {
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
             >
               <SortableContext
