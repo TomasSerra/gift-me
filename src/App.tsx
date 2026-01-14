@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { ScrollToTop } from "@/components/layout/ScrollToTop";
 import { AuthPage } from "@/pages/Auth";
 import { HomePage } from "@/pages/Home";
 import { ProfilePage } from "@/pages/Profile";
@@ -58,6 +59,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         <Route
           path="/auth"
