@@ -193,6 +193,7 @@ export function FolderDetailPage() {
   const handleDelete = async () => {
     if (!folderId) return;
     await deleteFolderMutation.mutateAsync(folderId);
+    sessionStorage.setItem("wishlistTab", "folders");
     navigate(-1);
   };
 
@@ -268,11 +269,8 @@ export function FolderDetailPage() {
             variant="ghost"
             size="icon"
             onClick={() => {
-              if (isOwner) {
-                navigate("/profile?tab=folders");
-              } else {
-                navigate(`/friends/${folder.ownerId}?tab=folders`);
-              }
+              sessionStorage.setItem("wishlistTab", "folders");
+              navigate(-1);
             }}
           >
             <ArrowLeft className="w-5 h-5" />
