@@ -32,6 +32,7 @@ export interface Folder {
   id: string;
   ownerId: string;
   name: string;
+  itemOrder?: string[];
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

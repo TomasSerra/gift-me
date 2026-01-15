@@ -122,7 +122,7 @@ export function WishlistForm({
   editItem,
 }: WishlistFormProps) {
   const [imageItems, setImageItems] = useState<ImageItem[]>([]);
-  const [currency, setCurrency] = useState<Currency>("USD");
+  const [currency, setCurrency] = useState<Currency>("ARS");
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFolderIds, setSelectedFolderIds] = useState<string[]>([]);
   const [folderPickerOpen, setFolderPickerOpen] = useState(false);
@@ -177,7 +177,7 @@ export function WishlistForm({
         })
       );
       setImageItems(existingImages);
-      setCurrency(editItem?.currency || "USD");
+      setCurrency(editItem?.currency || "ARS");
       setSelectedFolderIds(editItem?.folderIds || []);
     }
   }, [open, editItem, reset]);
@@ -426,20 +426,6 @@ export function WishlistForm({
               <div className="flex bg-muted rounded-lg p-1 h-10">
                 <button
                   type="button"
-                  onClick={() => setCurrency("USD")}
-                  disabled={isLoading}
-                  className={cn(
-                    "px-3 rounded-md transition-colors text-sm font-medium",
-                    currency === "USD"
-                      ? "bg-background shadow-sm"
-                      : "hover:bg-background/50",
-                    isLoading && "opacity-50 cursor-not-allowed"
-                  )}
-                >
-                  USD
-                </button>
-                <button
-                  type="button"
                   onClick={() => setCurrency("ARS")}
                   disabled={isLoading}
                   className={cn(
@@ -451,6 +437,20 @@ export function WishlistForm({
                   )}
                 >
                   ARS
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrency("USD")}
+                  disabled={isLoading}
+                  className={cn(
+                    "px-3 rounded-md transition-colors text-sm font-medium",
+                    currency === "USD"
+                      ? "bg-background shadow-sm"
+                      : "hover:bg-background/50",
+                    isLoading && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  USD
                 </button>
               </div>
               <Input

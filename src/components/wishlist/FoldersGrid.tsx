@@ -12,8 +12,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { FolderPlus, Folder } from "lucide-react";
-import type { WishlistItem } from "@/types";
+import { FolderPlus, Folder as FolderIcon } from "lucide-react";
+import type { WishlistItem, Folder } from "@/types";
 
 interface FoldersGridProps {
   userId: string;
@@ -51,10 +51,20 @@ export function FoldersGrid({
 
   const loading = foldersLoading || itemsLoading;
 
-  const getItemsForFolder = (folderId: string): WishlistItem[] => {
-    return items
-      .filter((item) => item.folderIds?.includes(folderId))
-      .slice(0, 4);
+  const getItemsForFolder = (folder: Folder): WishlistItem[] => {
+    const folderItems = items.filter((item) => item.folderIds?.includes(folder.id));
+
+    // Sort by folder's itemOrder if it exists
+    if (folder.itemOrder && folder.itemOrder.length > 0) {
+      const orderMap = new Map(folder.itemOrder.map((id, index) => [id, index]));
+      folderItems.sort((a, b) => {
+        const orderA = orderMap.get(a.id) ?? Infinity;
+        const orderB = orderMap.get(b.id) ?? Infinity;
+        return orderA - orderB;
+      });
+    }
+
+    return folderItems.slice(0, 4);
   };
 
   const handleCreateFolder = async () => {
@@ -78,7 +88,7 @@ export function FoldersGrid({
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-          <Folder className="w-8 h-8 text-muted-foreground" />
+          <FolderIcon className="w-8 h-8 text-muted-foreground" />
         </div>
         <h3 className="font-medium text-foreground">No folders</h3>
         <p className="text-sm text-muted-foreground mt-1">
@@ -97,7 +107,7 @@ export function FoldersGrid({
             <FolderCard
               key={folder.id}
               folder={folder}
-              items={getItemsForFolder(folder.id)}
+              items={getItemsForFolder(folder)}
             />
           ))}
         </div>

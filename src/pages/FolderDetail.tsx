@@ -1,9 +1,24 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { doc, onSnapshot, query, collection, where } from "firebase/firestore";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+} from "@dnd-kit/sortable";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
-import { useDeleteFolder, useUpdateFolder } from "@/hooks/useFolders";
+import { useDeleteFolder, useUpdateFolder, useReorderFolderItems } from "@/hooks/useFolders";
 import { useUserById } from "@/hooks/useUserById";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Avatar } from "@/components/ui/avatar";
@@ -37,6 +52,7 @@ import {
   Check,
   X,
   UserPlus,
+  ArrowUpDown,
 } from "lucide-react";
 import type { Folder, WishlistItem } from "@/types";
 
@@ -53,9 +69,45 @@ export function FolderDetailPage() {
   const [editName, setEditName] = useState("");
   const [editingItem, setEditingItem] = useState<WishlistItem | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [isReorderMode, setIsReorderMode] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const deleteFolderMutation = useDeleteFolder(folder?.ownerId || "");
   const updateFolderMutation = useUpdateFolder();
+  const reorderMutation = useReorderFolderItems(folderId || "");
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 100,
+        tolerance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Prevent body scroll while dragging
+  useEffect(() => {
+    if (isDragging) {
+      document.body.style.overflow = "hidden";
+      document.body.style.touchAction = "none";
+    } else {
+      document.body.style.overflow = "";
+      document.body.style.touchAction = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.touchAction = "";
+    };
+  }, [isDragging]);
 
   // Fetch owner data
   const { data: owner } = useUserById(folder?.ownerId);
@@ -99,11 +151,44 @@ export function FolderDetailPage() {
         id: doc.id,
         ...doc.data(),
       })) as WishlistItem[];
+
+      // Sort items based on folder.itemOrder
+      if (folder.itemOrder && folder.itemOrder.length > 0) {
+        const orderMap = new Map(folder.itemOrder.map((id, index) => [id, index]));
+        newItems.sort((a, b) => {
+          const orderA = orderMap.get(a.id) ?? Infinity;
+          const orderB = orderMap.get(b.id) ?? Infinity;
+          return orderA - orderB;
+        });
+      }
+
       setItems(newItems);
     });
 
     return () => unsubscribe();
   }, [folderId, folder]);
+
+  const handleDragStart = () => {
+    setIsDragging(true);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setIsDragging(false);
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = items.findIndex((item) => item.id === active.id);
+      const newIndex = items.findIndex((item) => item.id === over.id);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newItems = [...items];
+        const [movedItem] = newItems.splice(oldIndex, 1);
+        newItems.splice(newIndex, 0, movedItem);
+        setItems(newItems);
+        reorderMutation.mutate(newItems.map((item) => item.id));
+      }
+    }
+  };
 
   const handleDelete = async () => {
     if (!folderId) return;
@@ -179,7 +264,17 @@ export function FolderDetailPage() {
     <div className="flex items-center justify-between p-4">
       <div className="flex items-center gap-2">
         {user ? (
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              if (isOwner) {
+                navigate("/profile?tab=folders");
+              } else {
+                navigate(`/friends/${folder.ownerId}?tab=folders`);
+              }
+            }}
+          >
             <ArrowLeft className="w-5 h-5" />
           </Button>
         ) : (
@@ -246,6 +341,27 @@ export function FolderDetailPage() {
 
   return (
     <PageContainer header={header}>
+      {/* Reorder button row */}
+      {isOwner && items.length > 1 && (
+        <div className="flex justify-end mb-4">
+          {isReorderMode ? (
+            <Button onClick={() => setIsReorderMode(false)}>
+              <Check className="w-4 h-4 mr-2" />
+              Done
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-11"
+              onClick={() => setIsReorderMode(true)}
+            >
+              <ArrowUpDown className="w-5 h-5" />
+            </Button>
+          )}
+        </div>
+      )}
+
       {items.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <FolderOpen className="w-12 h-12 text-muted-foreground mb-4" />
@@ -257,16 +373,30 @@ export function FolderDetailPage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
-          {items.map((item) => (
-            <WishlistGridItem
-              key={item.id}
-              item={item}
-              isOwner={isOwner}
-              onEdit={() => handleEditItem(item)}
-            />
-          ))}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={items.map((item) => item.id)}
+            strategy={rectSortingStrategy}
+            disabled={!isReorderMode}
+          >
+            <div className="grid grid-cols-2 gap-3">
+              {items.map((item) => (
+                <WishlistGridItem
+                  key={item.id}
+                  item={item}
+                  isOwner={isOwner}
+                  isReorderMode={isReorderMode}
+                  onEdit={() => handleEditItem(item)}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {/* Owner info - only show if viewing someone else's folder */}

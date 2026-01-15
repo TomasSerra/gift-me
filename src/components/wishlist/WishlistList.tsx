@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   DndContext,
   closestCenter,
@@ -40,11 +41,23 @@ interface WishlistListProps {
 }
 
 export function WishlistList({ userId, isOwner = false }: WishlistListProps) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { items, loading } = useWishlist(userId);
   const reorderMutation = useReorderWishlist(userId);
   const [formOpen, setFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<WishlistItem | null>(null);
-  const [tabMode, setTabMode] = useState<TabMode>("products");
+
+  // Read initial tab from URL param
+  const initialTab = searchParams.get("tab") === "folders" ? "folders" : "products";
+  const [tabMode, setTabMode] = useState<TabMode>(initialTab);
+
+  // Clear the tab param after reading it
+  useEffect(() => {
+    if (searchParams.has("tab")) {
+      searchParams.delete("tab");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, []);
   const [isReorderMode, setIsReorderMode] = useState(false);
   const [createFolderMode, setCreateFolderMode] = useState(false);
   const [isDragging, setIsDragging] = useState(false);

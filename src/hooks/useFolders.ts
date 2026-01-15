@@ -207,3 +207,14 @@ export function useRemoveItemFromFolder() {
     },
   });
 }
+
+export function useReorderFolderItems(folderId: string) {
+  return useMutation({
+    mutationFn: async (itemIds: string[]) => {
+      await updateDoc(doc(db, "folders", folderId), {
+        itemOrder: itemIds,
+        updatedAt: serverTimestamp(),
+      });
+    },
+  });
+}
