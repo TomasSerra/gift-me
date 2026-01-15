@@ -15,6 +15,10 @@ export const queryKeys = {
     user: (userId: string) => ['wishlist', userId] as const,
     item: (itemId: string) => ['wishlist', 'item', itemId] as const,
   },
+  folders: {
+    user: (userId: string) => ['folders', userId] as const,
+    detail: (folderId: string) => ['folders', 'detail', folderId] as const,
+  },
   activity: {
     feed: (userId: string) => ['activity', 'feed', userId] as const,
   },

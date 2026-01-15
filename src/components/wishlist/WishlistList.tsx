@@ -8,25 +8,31 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
-  type DragStartEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
   sortableKeyboardCoordinates,
   rectSortingStrategy,
-  verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { useWishlist, useReorderWishlist } from "@/hooks/useWishlist";
-import { WishlistItemCard } from "./WishlistItem";
 import { WishlistGridItem } from "./WishlistGridItem";
 import { WishlistForm } from "./WishlistForm";
+import { FoldersGrid } from "./FoldersGrid";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Gift, LayoutGrid, List, ArrowUpDown, Check } from "lucide-react";
+import {
+  Plus,
+  Gift,
+  Package,
+  FolderOpen,
+  ArrowUpDown,
+  Check,
+  FolderPlus,
+} from "lucide-react";
 import type { WishlistItem } from "@/types";
 import { cn } from "@/lib/utils";
 
-type ViewMode = "grid" | "list";
+type TabMode = "products" | "folders";
 
 interface WishlistListProps {
   userId: string;
@@ -38,8 +44,9 @@ export function WishlistList({ userId, isOwner = false }: WishlistListProps) {
   const reorderMutation = useReorderWishlist(userId);
   const [formOpen, setFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<WishlistItem | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [tabMode, setTabMode] = useState<TabMode>("products");
   const [isReorderMode, setIsReorderMode] = useState(false);
+  const [createFolderMode, setCreateFolderMode] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const isClosingRef = useRef(false);
 
@@ -76,13 +83,13 @@ export function WishlistList({ userId, isOwner = false }: WishlistListProps) {
     })
   );
 
-  // Exit reorder mode when view mode changes
-  const handleViewModeChange = (mode: ViewMode) => {
-    setViewMode(mode);
+  // Exit reorder mode when tab mode changes
+  const handleTabModeChange = (mode: TabMode) => {
+    setTabMode(mode);
     setIsReorderMode(false);
   };
 
-  const handleDragStart = (_event: DragStartEvent) => {
+  const handleDragStart = () => {
     setIsDragging(true);
   };
 
@@ -135,10 +142,9 @@ export function WishlistList({ userId, isOwner = false }: WishlistListProps) {
       </div>
     );
   }
-
   return (
     <>
-      {items.length === 0 ? (
+      {items.length === 0 && tabMode === "products" ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
             <Gift className="w-8 h-8 text-muted-foreground" />
@@ -160,62 +166,84 @@ export function WishlistList({ userId, isOwner = false }: WishlistListProps) {
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Header with Add button, reorder toggle, and view toggle */}
-          <div className="flex items-center gap-2">
-            {isOwner && !isReorderMode && (
-              <Button className="flex-1" onClick={() => setFormOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Item
-              </Button>
-            )}
-
-            {/* Reorder mode toggle - only for owners */}
-            {isOwner && (
-              <Button
-                variant={isReorderMode ? "default" : "outline"}
-                className={cn("h-11", isReorderMode && "flex-1")}
-                onClick={() => setIsReorderMode(!isReorderMode)}
-              >
-                {isReorderMode ? (
-                  <>
-                    <Check className="w-4 h-4 mr-2" />
-                    Done
-                  </>
-                ) : (
-                  <ArrowUpDown className="w-5 h-5" />
-                )}
-              </Button>
-            )}
-
-            {/* View mode toggle */}
+          {/* Tab mode toggle - full width, hidden in reorder mode */}
+          {!isReorderMode && (
             <div className="flex bg-muted rounded-full p-1 h-11">
               <button
-                onClick={() => handleViewModeChange("grid")}
+                onClick={() => handleTabModeChange("products")}
                 className={cn(
-                  "px-4 rounded-full transition-colors flex items-center justify-center",
-                  viewMode === "grid"
+                  "flex-1 rounded-full transition-colors flex items-center justify-center gap-2",
+                  tabMode === "products"
                     ? "bg-background shadow-sm"
                     : "hover:bg-background/50"
                 )}
               >
-                <LayoutGrid className="w-5 h-5" />
+                <Package className="w-5 h-5" />
+                <span className="text-sm font-medium">Wishlist</span>
               </button>
               <button
-                onClick={() => handleViewModeChange("list")}
+                onClick={() => handleTabModeChange("folders")}
                 className={cn(
-                  "px-4 rounded-full transition-colors flex items-center justify-center",
-                  viewMode === "list"
+                  "flex-1 rounded-full transition-colors flex items-center justify-center gap-2",
+                  tabMode === "folders"
                     ? "bg-background shadow-sm"
                     : "hover:bg-background/50"
                 )}
               >
-                <List className="w-5 h-5" />
+                <FolderOpen className="w-5 h-5" />
+                <span className="text-sm font-medium">Folders</span>
               </button>
             </div>
-          </div>
+          )}
 
-          {/* Grid view */}
-          {viewMode === "grid" && (
+          {/* Action buttons row */}
+          {isOwner && (
+            <div className="flex items-center gap-2">
+              {/* Add Item button - products tab, not in reorder mode */}
+              {tabMode === "products" && !isReorderMode && (
+                <Button className="flex-1" onClick={() => setFormOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Item
+                </Button>
+              )}
+
+              {/* Add Folder button - folders tab */}
+              {tabMode === "folders" && (
+                <Button
+                  className="flex-1"
+                  onClick={() => setCreateFolderMode(true)}
+                >
+                  <FolderPlus className="w-4 h-4 mr-2" />
+                  Add Folder
+                </Button>
+              )}
+
+              {/* Reorder mode toggle - products tab, not in reorder mode */}
+              {tabMode === "products" && !isReorderMode && (
+                <Button
+                  variant="outline"
+                  className="h-11"
+                  onClick={() => setIsReorderMode(true)}
+                >
+                  <ArrowUpDown className="w-5 h-5" />
+                </Button>
+              )}
+
+              {/* Done button - only visible in reorder mode */}
+              {isReorderMode && (
+                <Button
+                  className="flex-1"
+                  onClick={() => setIsReorderMode(false)}
+                >
+                  <Check className="w-4 h-4 mr-2" />
+                  Done
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Products grid */}
+          {tabMode === "products" && (
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
@@ -242,33 +270,14 @@ export function WishlistList({ userId, isOwner = false }: WishlistListProps) {
             </DndContext>
           )}
 
-          {/* List view */}
-          {viewMode === "list" && (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext
-                items={items.map((item) => item.id)}
-                strategy={verticalListSortingStrategy}
-                disabled={!isReorderMode}
-              >
-                <div className="space-y-3">
-                  {items.map((item, index) => (
-                    <WishlistItemCard
-                      key={item.id}
-                      item={item}
-                      isOwner={isOwner}
-                      isReorderMode={isReorderMode}
-                      onEdit={() => handleEdit(item)}
-                      priority={index + 1}
-                    />
-                  ))}
-                </div>
-              </SortableContext>
-            </DndContext>
+          {/* Folders view */}
+          {tabMode === "folders" && (
+            <FoldersGrid
+              userId={userId}
+              isOwner={isOwner}
+              startCreating={createFolderMode}
+              onCreatingChange={setCreateFolderMode}
+            />
           )}
         </div>
       )}

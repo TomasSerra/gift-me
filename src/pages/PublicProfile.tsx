@@ -153,7 +153,6 @@ export function PublicProfilePage() {
 
       {/* Wishlist - visible to everyone */}
       <div className="px-4 pb-8">
-        <h2 className="text-lg font-semibold mb-4">Wishlist</h2>
         <WishlistList userId={profileUser.id} isOwner={false} />
       </div>
     </PageContainer>

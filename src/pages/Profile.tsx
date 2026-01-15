@@ -47,7 +47,6 @@ export function ProfilePage() {
       <ProfileHeader user={user} onEdit={() => setEditOpen(true)} />
 
       <div className="px-4">
-        <h2 className="text-lg font-semibold mb-4">My Wishlist</h2>
         <WishlistList userId={user.id} isOwner />
       </div>
 

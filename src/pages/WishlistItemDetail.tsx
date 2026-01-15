@@ -6,6 +6,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDeleteWishlistItem } from "@/hooks/useWishlist";
 import { useUserById } from "@/hooks/useUserById";
+import { useFolders } from "@/hooks/useFolders";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queryKeys";
 import { PageContainer } from "@/components/layout/PageContainer";
@@ -22,7 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { WishlistForm } from "@/components/wishlist/WishlistForm";
 import { ShareButton } from "@/components/ui/share-button";
-import { ArrowLeft, ExternalLink, ChevronLeft, ChevronRight, Pencil, Trash2, UserPlus, MoreVertical } from "lucide-react";
+import { ArrowLeft, ExternalLink, ChevronLeft, ChevronRight, Pencil, Trash2, UserPlus, MoreVertical, FolderOpen } from "lucide-react";
 import {
   Popover,
   PopoverTrigger,
@@ -64,6 +65,14 @@ export function WishlistItemDetailPage() {
 
   // Fetch owner data using cached hook
   const { data: owner } = useUserById(item?.ownerId);
+
+  // Fetch folders for the item's owner
+  const { folders } = useFolders(item?.ownerId || "");
+
+  // Get folders this item belongs to
+  const itemFolders = folders.filter(
+    (folder) => item?.folderIds?.includes(folder.id)
+  );
 
   const isOwner = currentUser?.id === item?.ownerId;
 
@@ -272,6 +281,22 @@ export function WishlistItemDetailPage() {
 
         {item.description && (
           <p className="text-muted-foreground whitespace-pre-line">{item.description}</p>
+        )}
+
+        {/* Folder badges */}
+        {itemFolders.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {itemFolders.map((folder) => (
+              <button
+                key={folder.id}
+                onClick={() => navigate(`/folder/${folder.id}`)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-muted hover:bg-muted/80 rounded-full text-sm font-medium transition-colors"
+              >
+                <FolderOpen className="w-3.5 h-3.5" />
+                {folder.name}
+              </button>
+            ))}
+          </div>
         )}
 
         {item.link && (

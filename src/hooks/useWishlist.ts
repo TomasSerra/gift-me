@@ -29,6 +29,7 @@ interface CreateWishlistItemData {
   currency?: Currency;
   description?: string;
   link?: string;
+  folderIds?: string[];
 }
 
 interface UpdateWishlistItemData extends Partial<CreateWishlistItemData> {
@@ -93,6 +94,7 @@ export function useCreateWishlistItem(userId: string) {
         currency: data.currency || null,
         description: data.description || null,
         link: data.link || null,
+        folderIds: data.folderIds || [],
         priority,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -130,6 +132,7 @@ export function useCreateWishlistItem(userId: string) {
 export function useUpdateWishlistItem() {
   const { addToast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -139,6 +142,7 @@ export function useUpdateWishlistItem() {
       itemId: string;
       data: UpdateWishlistItemData;
     }) => {
+      if (!user) throw new Error("Not authenticated");
       // Convert undefined values to null for Firebase
       const updateData: Record<string, unknown> = {
         updatedAt: serverTimestamp(),
@@ -149,10 +153,40 @@ export function useUpdateWishlistItem() {
       }
 
       await updateDoc(doc(db, "wishlistItems", itemId), updateData);
+
+      // Also update the related activity entry to keep images in sync
+      try {
+        const activityQuery = query(
+          collection(db, "activity"),
+          where("userId", "==", user.id),
+          where("wishlistItemId", "==", itemId)
+        );
+        const activitySnapshot = await getDocs(activityQuery);
+
+        if (!activitySnapshot.empty) {
+          const relatedActivity = activitySnapshot.docs[0];
+          const activityUpdateData: Record<string, unknown> = {};
+
+          if (data.name !== undefined) activityUpdateData.itemName = data.name;
+          if (data.description !== undefined) activityUpdateData.itemDescription = data.description || null;
+          if (data.images !== undefined) activityUpdateData.itemImages = data.images || [];
+          if (data.price !== undefined) activityUpdateData.itemPrice = data.price || null;
+          if (data.currency !== undefined) activityUpdateData.itemCurrency = data.currency || null;
+          if (data.link !== undefined) activityUpdateData.itemLink = data.link || null;
+
+          if (Object.keys(activityUpdateData).length > 0) {
+            await updateDoc(doc(db, "activity", relatedActivity.id), activityUpdateData);
+          }
+        }
+      } catch (error) {
+        console.warn("Could not update activity entry:", error);
+      }
     },
     onSuccess: (_, { itemId }) => {
       addToast("Item updated", "success");
       queryClient.invalidateQueries({ queryKey: queryKeys.wishlist.item(itemId) });
+      // Invalidate all activity feeds so friends see the updated data
+      queryClient.invalidateQueries({ queryKey: ["activity"] });
     },
     onError: () => {
       addToast("Error updating item", "error");
@@ -163,6 +197,7 @@ export function useUpdateWishlistItem() {
 export function useDeleteWishlistItem() {
   const { addToast } = useToast();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (itemId: string) => {
@@ -190,26 +225,27 @@ export function useDeleteWishlistItem() {
 
       // Try to delete related activity entries (don't fail if this doesn't work)
       try {
-        // Query only by userId (has index) and filter in memory
         const activityQuery = query(
           collection(db, "activity"),
-          where("userId", "==", user.id)
+          where("userId", "==", user.id),
+          where("wishlistItemId", "==", itemId)
         );
         const activitySnapshot = await getDocs(activityQuery);
-        const relatedActivities = activitySnapshot.docs.filter(
-          (activityDoc) => activityDoc.data().wishlistItemId === itemId
-        );
-        const deleteActivityPromises = relatedActivities.map((activityDoc) =>
-          deleteDoc(doc(db, "activity", activityDoc.id))
-        );
-        await Promise.all(deleteActivityPromises);
+
+        if (!activitySnapshot.empty) {
+          const deleteActivityPromises = activitySnapshot.docs.map((activityDoc) =>
+            deleteDoc(doc(db, "activity", activityDoc.id))
+          );
+          await Promise.all(deleteActivityPromises);
+        }
       } catch (error) {
         console.warn("Could not delete activity entries:", error);
       }
     },
     onSuccess: () => {
       addToast("Item deleted", "success");
-      // Cache is updated via onSnapshot
+      // Invalidate all activity feeds so friends see the deletion
+      queryClient.invalidateQueries({ queryKey: ["activity"] });
     },
     onError: () => {
       addToast("Error deleting item", "error");

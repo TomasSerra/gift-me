@@ -38,6 +38,15 @@ service cloud.firestore {
         resource.data.ownerId == request.auth.uid;
     }
 
+    match /folders/{folderId} {
+      // Public read access for viewing folders
+      allow read: if true;
+      allow create: if isAuthenticated() &&
+        request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isAuthenticated() &&
+        resource.data.ownerId == request.auth.uid;
+    }
+
     match /friendships/{friendshipId} {
       allow read: if isAuthenticated() &&
         request.auth.uid in resource.data.users;
@@ -71,7 +80,8 @@ service cloud.firestore {
       );
       allow create: if isAuthenticated() &&
         request.resource.data.userId == request.auth.uid;
-      allow update: if false; // Activity cannot be modified
+      allow update: if isAuthenticated() &&
+        resource.data.userId == request.auth.uid; // Owner can update their activities
       allow delete: if isAuthenticated() &&
         resource.data.userId == request.auth.uid; // Owner can delete their activities
     }

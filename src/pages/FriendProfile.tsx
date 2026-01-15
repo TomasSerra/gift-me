@@ -227,7 +227,6 @@ export function FriendProfilePage() {
       {/* Wishlist only visible if friends */}
       {effectiveStatus === "friends" ? (
         <div className="px-4">
-          <h2 className="text-lg font-semibold mb-4">Wishlist</h2>
           <WishlistList userId={user.id} isOwner={false} />
         </div>
       ) : (

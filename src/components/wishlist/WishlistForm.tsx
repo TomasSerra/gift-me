@@ -34,7 +34,9 @@ import {
 } from "@/hooks/useWishlist";
 import { uploadMultipleImages, deleteMultipleImages } from "@/lib/storage";
 import { useToast } from "@/components/ui/toast";
-import { ImagePlus, X, ClipboardPaste } from "lucide-react";
+import { useFolders } from "@/hooks/useFolders";
+import { FolderPicker } from "./FolderPicker";
+import { ImagePlus, X, ClipboardPaste, FolderPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { WishlistItem, Currency } from "@/types";
 
@@ -122,8 +124,11 @@ export function WishlistForm({
   const [imageItems, setImageItems] = useState<ImageItem[]>([]);
   const [currency, setCurrency] = useState<Currency>("USD");
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedFolderIds, setSelectedFolderIds] = useState<string[]>([]);
+  const [folderPickerOpen, setFolderPickerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { addToast } = useToast();
+  const { folders } = useFolders(userId);
 
   const createMutation = useCreateWishlistItem(userId);
   const updateMutation = useUpdateWishlistItem();
@@ -173,6 +178,7 @@ export function WishlistForm({
       );
       setImageItems(existingImages);
       setCurrency(editItem?.currency || "USD");
+      setSelectedFolderIds(editItem?.folderIds || []);
     }
   }, [open, editItem, reset]);
 
@@ -286,9 +292,7 @@ export function WishlistForm({
         .map((img) => img.file!);
 
       const uploadedUrls =
-        newFiles.length > 0
-          ? await uploadMultipleImages(userId, newFiles)
-          : [];
+        newFiles.length > 0 ? await uploadMultipleImages(userId, newFiles) : [];
 
       // Build final images array in the correct order
       let uploadIndex = 0;
@@ -307,6 +311,7 @@ export function WishlistForm({
         currency: data.price ? currency : undefined,
         description: data.description || undefined,
         link: data.link || undefined,
+        folderIds: selectedFolderIds.length > 0 ? selectedFolderIds : undefined,
       };
 
       if (editItem) {
@@ -481,6 +486,43 @@ export function WishlistForm({
             {...register("link")}
           />
 
+          {/* Folders selector */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-left">
+              Folders (optional)
+            </label>
+            <Button
+              type="button"
+              variant="outline"
+              className="justify-start"
+              disabled={isLoading}
+              onClick={() => setFolderPickerOpen(true)}
+            >
+              <FolderPlus className="w-4 h-4 mr-2" />
+              {selectedFolderIds.length === 0
+                ? "Add to folders"
+                : `${selectedFolderIds.length} folder${
+                    selectedFolderIds.length > 1 ? "s" : ""
+                  } selected`}
+            </Button>
+            {selectedFolderIds.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {selectedFolderIds.map((folderId) => {
+                  const folder = folders.find((f) => f.id === folderId);
+                  if (!folder) return null;
+                  return (
+                    <span
+                      key={folderId}
+                      className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full"
+                    >
+                      {folder.name}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <div className="pt-4">
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (
@@ -493,6 +535,14 @@ export function WishlistForm({
             </Button>
           </div>
         </form>
+
+        <FolderPicker
+          userId={userId}
+          open={folderPickerOpen}
+          onOpenChange={setFolderPickerOpen}
+          selectedFolderIds={selectedFolderIds}
+          onSelectionChange={setSelectedFolderIds}
+        />
       </SheetContent>
     </Sheet>
   );

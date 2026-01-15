@@ -19,8 +19,10 @@ import {
   PopoverItem,
 } from "@/components/ui/popover";
 import { ShareButton } from "@/components/ui/share-button";
+import { FolderPicker } from "./FolderPicker";
 import { useDeleteWishlistItem } from "@/hooks/useWishlist";
-import { MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { useUpdateItemFolders } from "@/hooks/useFolders";
+import { MoreVertical, Pencil, Trash2, FolderPlus } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import type { WishlistItem } from "@/types";
 
@@ -39,7 +41,13 @@ export function WishlistGridItem({
 }: WishlistGridItemProps) {
   const navigate = useNavigate();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [folderPickerOpen, setFolderPickerOpen] = useState(false);
   const deleteMutation = useDeleteWishlistItem();
+  const updateFoldersMutation = useUpdateItemFolders();
+
+  const handleFolderSelectionChange = (folderIds: string[]) => {
+    updateFoldersMutation.mutate({ itemId: item.id, folderIds });
+  };
 
   const {
     attributes,
@@ -111,25 +119,29 @@ export function WishlistGridItem({
               </div>
               <div className="absolute top-2 right-2">
                 {isOwner && (
-              <Popover>
-                <PopoverTrigger>
-                  <MoreVertical className="w-5 h-5" />
-                </PopoverTrigger>
-                <PopoverContent>
-                  <PopoverItem onClick={onEdit}>
-                    <Pencil className="w-4 h-4" />
-                    Edit
-                  </PopoverItem>
-                  <PopoverItem
-                    variant="destructive"
-                    onClick={() => setDeleteDialogOpen(true)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete
-                  </PopoverItem>
-                </PopoverContent>
-              </Popover>
-            )}
+                  <Popover>
+                    <PopoverTrigger>
+                      <MoreVertical className="w-5 h-5" />
+                    </PopoverTrigger>
+                    <PopoverContent>
+                      <PopoverItem onClick={onEdit}>
+                        <Pencil className="w-4 h-4" />
+                        Edit
+                      </PopoverItem>
+                      <PopoverItem onClick={() => setFolderPickerOpen(true)}>
+                        <FolderPlus className="w-4 h-4" />
+                        Add
+                      </PopoverItem>
+                      <PopoverItem
+                        variant="destructive"
+                        onClick={() => setDeleteDialogOpen(true)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                      </PopoverItem>
+                    </PopoverContent>
+                  </Popover>
+                )}
               </div>
             </>
           )}
@@ -178,6 +190,17 @@ export function WishlistGridItem({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Folder picker */}
+      {isOwner && (
+        <FolderPicker
+          userId={item.ownerId}
+          open={folderPickerOpen}
+          onOpenChange={setFolderPickerOpen}
+          selectedFolderIds={item.folderIds || []}
+          onSelectionChange={handleFolderSelectionChange}
+        />
+      )}
     </>
   );
 }

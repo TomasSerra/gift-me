@@ -23,6 +23,15 @@ export interface WishlistItem {
   description?: string;
   link?: string;
   priority: number;
+  folderIds?: string[];
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface Folder {
+  id: string;
+  ownerId: string;
+  name: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
