@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useFolders, useCreateFolder } from "@/hooks/useFolders";
 import { useWishlist } from "@/hooks/useWishlist";
 import { FolderCard } from "./FolderCard";
@@ -6,7 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, FolderPlus, Check, Folder } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { FolderPlus, Folder } from "lucide-react";
 import type { WishlistItem } from "@/types";
 
 interface FoldersGridProps {
@@ -25,12 +31,22 @@ export function FoldersGrid({
   const { folders, loading: foldersLoading } = useFolders(userId);
   const { items, loading: itemsLoading } = useWishlist(userId);
   const createFolder = useCreateFolder(userId);
-  const [isCreating, setIsCreating] = useState(startCreating);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
 
-  const handleSetIsCreating = (value: boolean) => {
-    setIsCreating(value);
-    onCreatingChange?.(value);
+  // Sync with external state
+  useEffect(() => {
+    if (startCreating && !sheetOpen) {
+      setSheetOpen(true);
+    }
+  }, [startCreating, sheetOpen]);
+
+  const handleSheetOpenChange = (open: boolean) => {
+    setSheetOpen(open);
+    onCreatingChange?.(open);
+    if (!open) {
+      setNewFolderName("");
+    }
   };
 
   const loading = foldersLoading || itemsLoading;
@@ -45,7 +61,7 @@ export function FoldersGrid({
     if (!newFolderName.trim()) return;
     await createFolder.mutateAsync(newFolderName.trim());
     setNewFolderName("");
-    handleSetIsCreating(false);
+    handleSheetOpenChange(false);
   };
 
   if (loading) {
@@ -58,7 +74,7 @@ export function FoldersGrid({
     );
   }
 
-  if (folders.length === 0 && !isOwner && !isCreating) {
+  if (folders.length === 0 && !isOwner) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
@@ -73,46 +89,7 @@ export function FoldersGrid({
   }
 
   return (
-    <div className="space-y-4">
-      {/* Create folder input */}
-      {isCreating && (
-        <div className="flex gap-2">
-          <Input
-            placeholder="Folder name"
-            value={newFolderName}
-            onChange={(e) => setNewFolderName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                handleCreateFolder();
-              }
-            }}
-            autoFocus
-          />
-          <Button
-            size="icon"
-            onClick={handleCreateFolder}
-            disabled={!newFolderName.trim() || createFolder.isPending}
-          >
-            {createFolder.isPending ? (
-              <Spinner size="sm" />
-            ) : (
-              <Check className="w-4 h-4" />
-            )}
-          </Button>
-          <Button
-            size="icon"
-            variant="outline"
-            onClick={() => {
-              handleSetIsCreating(false);
-              setNewFolderName("");
-            }}
-          >
-            <Plus className="w-4 h-4 rotate-45" />
-          </Button>
-        </div>
-      )}
-
+    <>
       {/* Folders grid */}
       {folders.length > 0 ? (
         <div className="grid grid-cols-2 gap-3">
@@ -125,7 +102,6 @@ export function FoldersGrid({
           ))}
         </div>
       ) : (
-        !isCreating &&
         isOwner && (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
@@ -138,6 +114,46 @@ export function FoldersGrid({
           </div>
         )
       )}
-    </div>
+
+      {/* Create folder sheet */}
+      <Sheet open={sheetOpen} onOpenChange={handleSheetOpenChange}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>New Folder</SheetTitle>
+          </SheetHeader>
+
+          <div className="flex flex-col gap-4 mt-6">
+            <Input
+              label="Name *"
+              placeholder="e.g. Birthday ideas"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleCreateFolder();
+                }
+              }}
+              disabled={createFolder.isPending}
+              autoFocus
+            />
+
+            <div className="pt-4">
+              <Button
+                className="w-full"
+                onClick={handleCreateFolder}
+                disabled={!newFolderName.trim() || createFolder.isPending}
+              >
+                {createFolder.isPending ? (
+                  <Spinner size="sm" className="text-white" />
+                ) : (
+                  "Create"
+                )}
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
