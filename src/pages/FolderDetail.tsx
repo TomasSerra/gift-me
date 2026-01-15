@@ -4,7 +4,9 @@ import { doc, onSnapshot, query, collection, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDeleteFolder, useUpdateFolder } from "@/hooks/useFolders";
+import { useUserById } from "@/hooks/useUserById";
 import { PageContainer } from "@/components/layout/PageContainer";
+import { Avatar } from "@/components/ui/avatar";
 import { WishlistGridItem } from "@/components/wishlist/WishlistGridItem";
 import { WishlistForm } from "@/components/wishlist/WishlistForm";
 import { Button } from "@/components/ui/button";
@@ -34,6 +36,7 @@ import {
   FolderOpen,
   Check,
   X,
+  UserPlus,
 } from "lucide-react";
 import type { Folder, WishlistItem } from "@/types";
 
@@ -54,7 +57,16 @@ export function FolderDetailPage() {
   const deleteFolderMutation = useDeleteFolder(folder?.ownerId || "");
   const updateFolderMutation = useUpdateFolder();
 
+  // Fetch owner data
+  const { data: owner } = useUserById(folder?.ownerId);
+
   const isOwner = user?.id === folder?.ownerId;
+
+  const ownerName = owner
+    ? owner.firstName || owner.lastName
+      ? `${owner.firstName || ""} ${owner.lastName || ""}`.trim()
+      : owner.username
+    : "";
 
   // Fetch folder data
   useEffect(() => {
@@ -166,9 +178,16 @@ export function FolderDetailPage() {
   const header = (
     <div className="flex items-center justify-between p-4">
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
+        {user ? (
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+        ) : (
+          <Button variant="ghost" size="sm" onClick={() => navigate("/auth")}>
+            <UserPlus className="w-4 h-4 mr-1" />
+            Sign up
+          </Button>
+        )}
         {isEditing ? (
           <div className="flex items-center gap-2">
             <Input
@@ -247,6 +266,27 @@ export function FolderDetailPage() {
               onEdit={() => handleEditItem(item)}
             />
           ))}
+        </div>
+      )}
+
+      {/* Owner info - only show if viewing someone else's folder */}
+      {owner && !isOwner && (
+        <div
+          className="flex items-center gap-3 pt-4 mt-4 border-t cursor-pointer"
+          onClick={() =>
+            navigate(user ? `/friends/${owner.id}` : `/u/${owner.username}`)
+          }
+        >
+          <Avatar
+            id={owner.id}
+            firstName={owner.firstName}
+            lastName={owner.lastName}
+            photoURL={owner.photoURL}
+          />
+          <div>
+            <p className="text-sm text-muted-foreground">Folder by</p>
+            <p className="font-medium">{ownerName}</p>
+          </div>
         </div>
       )}
 
