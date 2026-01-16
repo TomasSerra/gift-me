@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   useFriendRequests,
   useAcceptFriendRequest,
@@ -58,38 +57,7 @@ export function FriendRequests() {
   // Filter out handled requests
   const visibleRequests = requests.filter((r) => !handledRequestIds.has(r.id));
 
-  // Only show skeletons on initial load (loading + no data)
-  if (loading && requests.length === 0) {
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Skeleton className="w-5 h-5 rounded" />
-          <Skeleton className="h-5 w-32" />
-        </div>
-        <div className="space-y-2">
-          {[1, 2].map((i) => (
-            <Card key={i}>
-              <CardContent className="p-3">
-                <div className="flex items-center gap-3">
-                  <Skeleton className="w-10 h-10 rounded-full" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-3 w-24" />
-                  </div>
-                  <div className="flex gap-2">
-                    <Skeleton className="w-10 h-10 rounded-md" />
-                    <Skeleton className="w-10 h-10 rounded-md" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (visibleRequests.length === 0) {
+  if (loading || visibleRequests.length === 0) {
     return null;
   }
 

@@ -17,7 +17,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { LogOut } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export function ProfilePage() {
   const { user, logout } = useAuth();
@@ -56,7 +55,7 @@ export function ProfilePage() {
 
   return (
     <PageContainer header={header} noPadding>
-      <div className={cn(editOpen && "invisible")}>
+      <div>
         {/* Share button - floating below header */}
         <div className="absolute top-24 safe-area-top right-4 z-10">
           <ShareButton url={shareUrl} title={shareTitle} variant="primary" />
@@ -65,7 +64,7 @@ export function ProfilePage() {
         <ProfileHeader user={user} onEdit={() => setEditOpen(true)} />
 
         <div className="px-4">
-          <WishlistList userId={user.id} isOwner onOpenForm={handleOpenForm} hideContent={wishlistFormOpen} />
+          <WishlistList userId={user.id} isOwner onOpenForm={handleOpenForm} hideContent={wishlistFormOpen || editOpen} />
         </div>
       </div>
 

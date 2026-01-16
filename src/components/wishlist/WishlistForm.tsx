@@ -366,7 +366,7 @@ export function WishlistForm({
           className="flex flex-col h-full min-h-0"
         >
           {/* Fixed header */}
-          <div className="shrink-0 px-6 pt-4 pb-4 border-b flex items-center min-h-[75px] bg-background">
+          <div className="shrink-0 px-6 pt-4 pb-4 border-b flex items-center min-h-[75px] bg-background touch-none">
             <h2 className="text-lg font-semibold flex-1 text-center">
               {editItem ? "Edit Item" : "Add Item"}
             </h2>
@@ -589,7 +589,7 @@ export function WishlistForm({
           </div>
 
           {/* Fixed footer */}
-          <div className="shrink-0 px-6 pt-4 pb-6 border-t bg-background">
+          <div className="shrink-0 px-6 pt-4 pb-6 border-t bg-background touch-none">
             <Button type="submit" className="w-full" disabled={isLoading || !nameValue?.trim()}>
               {isLoading ? (
                 <Spinner size="sm" className="text-white" />

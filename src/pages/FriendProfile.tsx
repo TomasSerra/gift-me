@@ -70,11 +70,25 @@ export function FriendProfilePage() {
 
   if (loading) {
     return (
-      <PageContainer header={header}>
-        <div className="flex flex-col items-center py-6">
-          <Skeleton className="w-20 h-20 rounded-full" />
-          <Skeleton className="w-32 h-6 mt-4" />
-          <Skeleton className="w-24 h-4 mt-2" />
+      <PageContainer header={header} noPadding>
+        {/* Profile header skeleton */}
+        <div className="flex items-start gap-4 px-4 py-6">
+          <Skeleton className="w-20 h-20 rounded-full flex-shrink-0" />
+          <div className="flex flex-col items-start gap-2">
+            <Skeleton className="w-32 h-6" />
+            <Skeleton className="w-24 h-4" />
+            <Skeleton className="w-28 h-9 mt-1 rounded-md" />
+          </div>
+        </div>
+        {/* Tabs skeleton */}
+        <div className="px-4">
+          <Skeleton className="w-full h-11 rounded-full" />
+        </div>
+        {/* Products grid skeleton */}
+        <div className="px-4 mt-4 grid grid-cols-2 gap-3">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="aspect-square w-full rounded-xl" />
+          ))}
         </div>
       </PageContainer>
     );
@@ -154,7 +168,7 @@ export function FriendProfilePage() {
         return (
           <Button
             variant="outline"
-            className="mt-4"
+            className="mt-3"
             onClick={() => setRemoveDialogOpen(true)}
           >
             <UserMinus className="w-4 h-4 mr-2" />
@@ -165,7 +179,7 @@ export function FriendProfilePage() {
         return (
           <Button
             variant="outline"
-            className="mt-4"
+            className="mt-3"
             onClick={handleCancelRequest}
           >
             <Clock className="w-4 h-4 mr-2" />
@@ -174,7 +188,7 @@ export function FriendProfilePage() {
         );
       case "pending_received":
         return (
-          <div className="flex gap-2 mt-4">
+          <div className="flex gap-2 mt-3">
             <Button onClick={handleAcceptRequest}>
               <Check className="w-4 h-4 mr-2" />
               Accept
@@ -187,7 +201,7 @@ export function FriendProfilePage() {
         );
       default:
         return (
-          <Button className="mt-4" onClick={handleSendRequest}>
+          <Button className="mt-3" onClick={handleSendRequest}>
             <UserPlus className="w-4 h-4 mr-2" />
             Add Friend
           </Button>
@@ -197,7 +211,8 @@ export function FriendProfilePage() {
 
   return (
     <PageContainer header={header} noPadding>
-      <div className="flex flex-col items-center py-6">
+      <div className="flex items-start gap-4 px-4 py-6">
+        {/* Avatar */}
         <Avatar
           id={user.id}
           firstName={user.firstName}
@@ -206,22 +221,25 @@ export function FriendProfilePage() {
           size="xl"
         />
 
-        <h1 className="mt-4 text-xl font-bold">
-          {user.firstName || user.lastName
-            ? `${user.firstName || ""} ${user.lastName || ""}`.trim()
-            : user.username}
-        </h1>
+        {/* Info */}
+        <div className="flex flex-col items-start min-w-0">
+          <h1 className="text-xl font-bold">
+            {user.firstName || user.lastName
+              ? `${user.firstName || ""} ${user.lastName || ""}`.trim()
+              : user.username}
+          </h1>
 
-        <p className="text-muted-foreground">@{user.username}</p>
+          <p className="text-muted-foreground">@{user.username}</p>
 
-        {birthday && (
-          <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
-            <Cake className="w-4 h-4" />
-            {format(birthday, "MMMM d")}
-          </p>
-        )}
+          {birthday && (
+            <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+              <Cake className="w-4 h-4" />
+              {format(birthday, "MMMM d")}
+            </p>
+          )}
 
-        {renderActionButton()}
+          {renderActionButton()}
+        </div>
       </div>
 
       {/* Wishlist visible to everyone */}

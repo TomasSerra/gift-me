@@ -43,8 +43,9 @@ export function ProfileHeader({
   };
 
   return (
-    <div className="flex flex-col items-center py-6">
-      <div className="relative">
+    <div className="flex items-start gap-4 px-4 py-6">
+      {/* Avatar */}
+      <div className="relative flex-shrink-0">
         <Avatar
           id={user.id}
           firstName={user.firstName}
@@ -77,32 +78,35 @@ export function ProfileHeader({
         )}
       </div>
 
-      <h1 className="mt-4 text-xl font-bold">
-        {user.firstName || user.lastName
-          ? `${user.firstName || ""} ${user.lastName || ""}`.trim()
-          : user.username}
-      </h1>
+      {/* Info */}
+      <div className="flex flex-col items-start min-w-0">
+        <h1 className="text-xl font-bold">
+          {user.firstName || user.lastName
+            ? `${user.firstName || ""} ${user.lastName || ""}`.trim()
+            : user.username}
+        </h1>
 
-      <p className="text-muted-foreground">@{user.username}</p>
+        <p className="text-muted-foreground">@{user.username}</p>
 
-      {birthday && (
-        <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
-          <Cake className="w-4 h-4" />
-          {format(birthday, "MMMM d")}
-        </p>
-      )}
+        {birthday && (
+          <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+            <Cake className="w-4 h-4" />
+            {format(birthday, "MMMM d")}
+          </p>
+        )}
 
-      {isOwnProfile && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="mt-4"
-          onClick={onEdit}
-        >
-          <Settings className="w-4 h-4 mr-2" />
-          Edit Profile
-        </Button>
-      )}
+        {isOwnProfile && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={onEdit}
+          >
+            <Settings className="w-4 h-4 mr-2" />
+            Edit Profile
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

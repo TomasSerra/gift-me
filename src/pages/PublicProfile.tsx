@@ -82,11 +82,25 @@ export function PublicProfilePage() {
 
   if (loading) {
     return (
-      <PageContainer header={header}>
-        <div className="flex flex-col items-center py-6">
-          <Skeleton className="w-20 h-20 rounded-full" />
-          <Skeleton className="w-32 h-6 mt-4" />
-          <Skeleton className="w-24 h-4 mt-2" />
+      <PageContainer header={header} noPadding>
+        {/* Profile header skeleton */}
+        <div className="flex items-start gap-4 px-4 py-6">
+          <Skeleton className="w-20 h-20 rounded-full flex-shrink-0" />
+          <div className="flex flex-col items-start gap-2">
+            <Skeleton className="w-32 h-6" />
+            <Skeleton className="w-24 h-4" />
+            <Skeleton className="w-28 h-9 mt-1 rounded-md" />
+          </div>
+        </div>
+        {/* Tabs skeleton */}
+        <div className="px-4">
+          <Skeleton className="w-full h-11 rounded-full" />
+        </div>
+        {/* Products grid skeleton */}
+        <div className="px-4 mt-4 grid grid-cols-2 gap-3">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="aspect-square w-full rounded-xl" />
+          ))}
         </div>
       </PageContainer>
     );
@@ -114,7 +128,8 @@ export function PublicProfilePage() {
   return (
     <PageContainer header={header} noPadding>
       {/* Profile info */}
-      <div className="flex flex-col items-center py-6">
+      <div className="flex items-start gap-4 px-4 py-6">
+        {/* Avatar */}
         <Avatar
           id={profileUser.id}
           firstName={profileUser.firstName}
@@ -123,33 +138,36 @@ export function PublicProfilePage() {
           size="xl"
         />
 
-        <h1 className="mt-4 text-xl font-bold">{displayName}</h1>
-        <p className="text-muted-foreground">@{profileUser.username}</p>
+        {/* Info */}
+        <div className="flex flex-col items-start min-w-0">
+          <h1 className="text-xl font-bold">{displayName}</h1>
+          <p className="text-muted-foreground">@{profileUser.username}</p>
 
-        {birthday && (
-          <p className="text-sm text-muted-foreground mt-1">
-            {format(birthday, "MMMM d", { locale: enUS })}
-          </p>
-        )}
+          {birthday && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {format(birthday, "MMMM d", { locale: enUS })}
+            </p>
+          )}
 
-        {/* CTA for non-logged users */}
-        {!currentUser && (
-          <Button className="mt-4" onClick={() => navigate("/auth")}>
-            <LogIn className="w-4 h-4 mr-2" />
-            Sign in to add friend
-          </Button>
-        )}
+          {/* CTA for non-logged users */}
+          {!currentUser && (
+            <Button className="mt-3" onClick={() => navigate("/auth")}>
+              <LogIn className="w-4 h-4 mr-2" />
+              Sign in to add friend
+            </Button>
+          )}
 
-        {/* If logged in but not viewing own profile, show add friend */}
-        {currentUser && currentUser.id !== profileUser.id && (
-          <Button
-            className="mt-4"
-            onClick={() => navigate(`/friends/${profileUser.id}`)}
-          >
-            <UserPlus className="w-4 h-4 mr-2" />
-            View full profile
-          </Button>
-        )}
+          {/* If logged in but not viewing own profile, show add friend */}
+          {currentUser && currentUser.id !== profileUser.id && (
+            <Button
+              className="mt-3"
+              onClick={() => navigate(`/friends/${profileUser.id}`)}
+            >
+              <UserPlus className="w-4 h-4 mr-2" />
+              View full profile
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Wishlist - visible to everyone */}
