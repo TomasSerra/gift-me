@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useNavigationType } from "react-router-dom";
 import { useState } from "react";
 import { useSwipeable } from "react-swipeable";
 import { doc, getDoc } from "firebase/firestore";
@@ -73,6 +73,7 @@ const getFaviconUrl = (url: string): string | null => {
 export function WishlistItemDetailPage() {
   const { itemId } = useParams<{ itemId: string }>();
   const navigate = useNavigate();
+  const navigationType = useNavigationType();
   const { user: currentUser } = useAuth();
   const deleteMutation = useDeleteWishlistItem();
   const queryClient = useQueryClient();
@@ -218,9 +219,12 @@ export function WishlistItemDetailPage() {
   const firstLink = links[0];
   const firstFaviconUrl = firstLink ? getFaviconUrl(firstLink) : null;
 
+  // Show back button if user is logged in OR if they navigated here from within the app
+  const showBackButton = currentUser || navigationType === "PUSH";
+
   const header = (
     <div className="flex items-center gap-3 p-4">
-      {currentUser ? (
+      {showBackButton ? (
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft className="w-5 h-5" />
         </Button>

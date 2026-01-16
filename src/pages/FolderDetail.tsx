@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useNavigationType } from "react-router-dom";
 import { doc, onSnapshot, query, collection, where } from "firebase/firestore";
 import {
   DndContext,
@@ -61,6 +61,7 @@ import type { Folder, WishlistItem, Purchase } from "@/types";
 export function FolderDetailPage() {
   const { folderId } = useParams<{ folderId: string }>();
   const navigate = useNavigate();
+  const navigationType = useNavigationType();
   const { user } = useAuth();
 
   const [folder, setFolder] = useState<Folder | null>(null);
@@ -281,11 +282,14 @@ export function FolderDetailPage() {
 
   const shareUrl = `${window.location.origin}/folder/${folderId}`;
 
+  // Show back button if user is logged in OR if they navigated here from within the app
+  const showBackButton = user || navigationType === "PUSH";
+
   const header = (
     <div className="p-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {user ? (
+          {showBackButton ? (
             <Button
               variant="ghost"
               size="icon"

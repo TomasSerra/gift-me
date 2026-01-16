@@ -68,7 +68,8 @@ export function PublicProfilePage() {
           Sign up
         </Button>
       )}
-      <h1 className="text-lg font-semibold flex-1">Profile</h1>
+      {currentUser && <h1 className="text-lg font-semibold flex-1">Profile</h1>}
+      {!currentUser && <div className="flex-1" />}
       {profileUser && (
         <ShareButton
           url={shareUrl}
