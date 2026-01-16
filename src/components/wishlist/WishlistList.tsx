@@ -39,9 +39,13 @@ interface WishlistListProps {
   userId: string;
   isOwner?: boolean;
   isFriend?: boolean;
+  /** When provided, form control is externalized - parent handles the WishlistForm */
+  onOpenForm?: (item?: WishlistItem) => void;
+  /** When true, hides the products/folders grid */
+  hideContent?: boolean;
 }
 
-export function WishlistList({ userId, isOwner = false, isFriend = false }: WishlistListProps) {
+export function WishlistList({ userId, isOwner = false, isFriend = false, onOpenForm, hideContent }: WishlistListProps) {
   const { items, loading } = useWishlist(userId);
   const reorderMutation = useReorderWishlist(userId);
 
@@ -56,6 +60,7 @@ export function WishlistList({ userId, isOwner = false, isFriend = false }: Wish
     },
     {} as Record<string, Purchase>
   );
+  // Internal form state - only used when onOpenForm is not provided
   const [formOpen, setFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<WishlistItem | null>(null);
 
@@ -135,9 +140,21 @@ export function WishlistList({ userId, isOwner = false, isFriend = false }: Wish
   };
 
   const handleEdit = (item: WishlistItem) => {
-    setEditingItem(item);
-    setFormOpen(true);
-    isClosingRef.current = false;
+    if (onOpenForm) {
+      onOpenForm(item);
+    } else {
+      setEditingItem(item);
+      setFormOpen(true);
+      isClosingRef.current = false;
+    }
+  };
+
+  const handleAddItem = () => {
+    if (onOpenForm) {
+      onOpenForm();
+    } else {
+      setFormOpen(true);
+    }
   };
 
   const handleCloseForm = (open: boolean) => {
@@ -182,7 +199,7 @@ export function WishlistList({ userId, isOwner = false, isFriend = false }: Wish
               : "This user hasn't added items yet"}
           </p>
           {isOwner && (
-            <Button className="mt-4" onClick={() => setFormOpen(true)}>
+            <Button className="mt-4" onClick={handleAddItem}>
               <Plus className="w-4 h-4 mr-2" />
               Add Item
             </Button>
@@ -225,7 +242,7 @@ export function WishlistList({ userId, isOwner = false, isFriend = false }: Wish
             <div className="flex items-center gap-2">
               {/* Add Item button - products tab, not in reorder mode */}
               {tabMode === "products" && !isReorderMode && (
-                <Button className="flex-1" onClick={() => setFormOpen(true)}>
+                <Button className="flex-1" onClick={handleAddItem}>
                   <Plus className="w-4 h-4 mr-2" />
                   Add Item
                 </Button>
@@ -279,7 +296,7 @@ export function WishlistList({ userId, isOwner = false, isFriend = false }: Wish
                 strategy={rectSortingStrategy}
                 disabled={!isReorderMode}
               >
-                <div className="grid grid-cols-2 gap-3">
+                <div className={cn("grid grid-cols-2 gap-3", hideContent && "invisible")}>
                   {items.map((item) => (
                     <WishlistGridItem
                       key={item.id}
@@ -298,18 +315,20 @@ export function WishlistList({ userId, isOwner = false, isFriend = false }: Wish
 
           {/* Folders view */}
           {tabMode === "folders" && (
-            <FoldersGrid
-              userId={userId}
-              isOwner={isOwner}
-              startCreating={createFolderMode}
-              onCreatingChange={setCreateFolderMode}
-            />
+            <div className={cn(hideContent && "invisible")}>
+              <FoldersGrid
+                userId={userId}
+                isOwner={isOwner}
+                startCreating={createFolderMode}
+                onCreatingChange={setCreateFolderMode}
+              />
+            </div>
           )}
         </div>
       )}
 
-      {/* Single WishlistForm instance - always rendered */}
-      {isOwner && (
+      {/* Single WishlistForm instance - only rendered when not externally controlled */}
+      {isOwner && !onOpenForm && (
         <WishlistForm
           userId={userId}
           open={formOpen}

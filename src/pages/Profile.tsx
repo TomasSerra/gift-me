@@ -4,8 +4,10 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { EditProfileSheet } from "@/components/profile/EditProfileSheet";
 import { WishlistList } from "@/components/wishlist/WishlistList";
+import { WishlistForm } from "@/components/wishlist/WishlistForm";
 import { Button } from "@/components/ui/button";
 import { ShareButton } from "@/components/ui/share-button";
+import type { WishlistItem } from "@/types";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +22,21 @@ import { cn } from "@/lib/utils";
 export function ProfilePage() {
   const { user, logout } = useAuth();
   const [editOpen, setEditOpen] = useState(false);
+  const [wishlistFormOpen, setWishlistFormOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<WishlistItem | null>(null);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+
+  const handleOpenForm = (item?: WishlistItem) => {
+    setEditingItem(item || null);
+    setWishlistFormOpen(true);
+  };
+
+  const handleCloseForm = (open: boolean) => {
+    if (!open) {
+      setWishlistFormOpen(false);
+      setTimeout(() => setEditingItem(null), 350);
+    }
+  };
 
   if (!user) return null;
 
@@ -49,7 +65,7 @@ export function ProfilePage() {
         <ProfileHeader user={user} onEdit={() => setEditOpen(true)} />
 
         <div className="px-4">
-          <WishlistList userId={user.id} isOwner />
+          <WishlistList userId={user.id} isOwner onOpenForm={handleOpenForm} hideContent={wishlistFormOpen} />
         </div>
       </div>
 
@@ -57,6 +73,13 @@ export function ProfilePage() {
         user={user}
         open={editOpen}
         onOpenChange={setEditOpen}
+      />
+
+      <WishlistForm
+        userId={user.id}
+        open={wishlistFormOpen}
+        onOpenChange={handleCloseForm}
+        editItem={editingItem}
       />
 
       <Dialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
