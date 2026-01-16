@@ -77,7 +77,7 @@ export function HomePage() {
   return (
     <PageContainer header={header} noPadding>
       <div
-        className="space-y-6 py-4"
+        className={cn("space-y-6 py-4", formOpen && "invisible")}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}

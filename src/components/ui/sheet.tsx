@@ -89,9 +89,9 @@ const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
     React.useEffect(() => {
       let timer: ReturnType<typeof setTimeout>;
       if (open) {
-        // Capture height BEFORE keyboard opens (use visualViewport if available for accuracy)
-        const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-        setInitialHeight(viewportHeight);
+        // Capture the full screen height BEFORE keyboard opens
+        // Use innerHeight which gives us the layout viewport (not affected by keyboard)
+        setInitialHeight(window.innerHeight);
         setShouldRender(true);
         document.body.style.overflow = "hidden";
         // Small delay to trigger the enter animation after mount
@@ -145,10 +145,13 @@ const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
 
     return (
       <>
-        {/* Overlay */}
+        {/* Overlay - use fixed height to prevent keyboard from revealing background */}
         <div
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm transition-opacity duration-300 touch-none"
-          style={{ opacity: isVisible ? 1 : 0 }}
+          className="fixed inset-x-0 top-0 z-50 bg-black/50 backdrop-blur-sm transition-opacity duration-300 touch-none"
+          style={{
+            opacity: isVisible ? 1 : 0,
+            height: initialHeight ? `${initialHeight}px` : '100vh',
+          }}
           onClick={() => setOpen(false)}
         />
         {/* Sheet */}
@@ -163,6 +166,8 @@ const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
             transform: isVisible
               ? `${transformAxis[side]}(0)`
               : `${transformAxis[side]}(${closedTransform[side]})`,
+            // Apply fixed height for top/bottom sheets to prevent keyboard resize issues
+            ...(side === "top" || side === "bottom" ? maxHeightStyle : {}),
           }}
           {...props}
         >
