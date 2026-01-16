@@ -7,6 +7,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDeleteWishlistItem } from "@/hooks/useWishlist";
 import { useUserById } from "@/hooks/useUserById";
 import { useFolders } from "@/hooks/useFolders";
+import { usePurchases, useCreatePurchase, useDeletePurchase } from "@/hooks/usePurchases";
+import { useFriendshipStatus } from "@/hooks/useFriendshipStatus";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queryKeys";
 import { PageContainer } from "@/components/layout/PageContainer";
@@ -41,6 +43,8 @@ import {
   FolderOpen,
   Eye,
   Gift,
+  Check,
+  X,
 } from "lucide-react";
 import {
   Popover,
@@ -78,6 +82,10 @@ export function WishlistItemDetailPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [linksSheetOpen, setLinksSheetOpen] = useState(false);
   const [faviconErrors, setFaviconErrors] = useState<Set<number>>(new Set());
+  const [purchaseDialogOpen, setPurchaseDialogOpen] = useState(false);
+  const [cancelPurchaseDialogOpen, setCancelPurchaseDialogOpen] = useState(false);
+  const createPurchaseMutation = useCreatePurchase();
+  const deletePurchaseMutation = useDeletePurchase();
 
   // Try to get cached item first
   const cachedItem = queryClient.getQueryData<WishlistItem>(
@@ -108,6 +116,35 @@ export function WishlistItemDetailPage() {
   );
 
   const isOwner = currentUser?.id === item?.ownerId;
+
+  // Check friendship status
+  const { data: friendshipData } = useFriendshipStatus(currentUser?.id, item?.ownerId);
+  const isFriend = friendshipData?.status === "friends";
+
+  // Load purchases for this item's owner
+  const { purchases } = usePurchases(item?.ownerId || "");
+  const purchase = purchases.find((p) => p.itemId === itemId);
+  const isPurchased = !!purchase;
+  const isPurchasedByMe = purchase?.buyerId === currentUser?.id;
+
+  const handlePurchase = async () => {
+    if (!item) return;
+    await createPurchaseMutation.mutateAsync({
+      itemId: item.id,
+      itemOwnerId: item.ownerId,
+    });
+    setPurchaseDialogOpen(false);
+  };
+
+  const handleCancelPurchase = async () => {
+    if (purchase) {
+      await deletePurchaseMutation.mutateAsync({
+        purchaseId: purchase.id,
+        itemOwnerId: item!.ownerId,
+      });
+    }
+    setCancelPurchaseDialogOpen(false);
+  };
 
   const images = item?.images || [];
   const hasMultipleImages = images.length > 1;
@@ -271,10 +308,29 @@ export function WishlistItemDetailPage() {
               alt={`${item.name} - Image ${currentImageIndex + 1}`}
               className={cn(
                 "w-full h-full object-contain",
-                isImageLoading && "opacity-0"
+                isImageLoading && "opacity-0",
+                isPurchased && "opacity-50"
               )}
               onLoad={handleImageLoad}
             />
+            {/* Purchased badge */}
+            {isPurchased && !isOwner && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div
+                  className={cn(
+                    "text-sm font-semibold px-4 py-3 rounded-md shadow-lg flex items-center gap-2",
+                    isPurchasedByMe
+                      ? "bg-primary/80 text-primary-foreground"
+                      : "bg-slate-700/90 text-slate-100"
+                  )}
+                >
+                  {isPurchasedByMe
+                    ? "You bought this"
+                    : `Bought by ${purchase?.buyerName}`}
+                  <Check size={18} />
+                </div>
+              </div>
+            )}
           </div>
 
           {hasMultipleImages && (
@@ -315,8 +371,29 @@ export function WishlistItemDetailPage() {
           )}
         </div>
       ) : (
-        <div className="aspect-square bg-muted flex items-center justify-center">
+        <div className={cn(
+          "aspect-square bg-muted flex items-center justify-center relative",
+          isPurchased && "opacity-50"
+        )}>
           <Gift size={50} className="text-muted-foreground" />
+          {/* Purchased badge for items without images */}
+          {isPurchased && !isOwner && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div
+                className={cn(
+                  "text-sm font-semibold px-4 py-3 rounded-md shadow-lg flex items-center gap-2",
+                  isPurchasedByMe
+                    ? "bg-primary/80 text-primary-foreground"
+                    : "bg-slate-700/90 text-slate-100"
+                )}
+              >
+                {isPurchasedByMe
+                  ? "You bought this"
+                  : `Bought by ${purchase?.buyerName}`}
+                <Check size={18} />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -387,6 +464,30 @@ export function WishlistItemDetailPage() {
           )
         )}
 
+        {/* Purchase actions - only for authenticated friends */}
+        {!isOwner && currentUser && isFriend && (
+          <div>
+            {!isPurchased ? (
+              <Button
+                className="w-full"
+                onClick={() => setPurchaseDialogOpen(true)}
+              >
+                <Gift className="w-4 h-4 mr-2" />
+                I bought this
+              </Button>
+            ) : isPurchasedByMe ? (
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => setCancelPurchaseDialogOpen(true)}
+              >
+                <X className="w-4 h-4 mr-2" />
+                Cancel purchase
+              </Button>
+            ) : null}
+          </div>
+        )}
+
         {/* Owner info - only show if viewing someone else's item */}
         {owner && !isOwner && (
           <div
@@ -446,6 +547,68 @@ export function WishlistItemDetailPage() {
               disabled={deleteMutation.isPending}
             >
               {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Purchase confirmation dialog */}
+      <Dialog open={purchaseDialogOpen} onOpenChange={setPurchaseDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark as Purchased</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to mark "{item?.name}" as purchased? Other
+              friends will see that you're buying this gift.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setPurchaseDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handlePurchase}
+              disabled={createPurchaseMutation.isPending}
+            >
+              {createPurchaseMutation.isPending
+                ? "Marking..."
+                : "Yes, I bought this"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel purchase confirmation dialog */}
+      <Dialog
+        open={cancelPurchaseDialogOpen}
+        onOpenChange={setCancelPurchaseDialogOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Purchase</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to cancel your purchase of "{item?.name}"?
+              This will allow other friends to buy it.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCancelPurchaseDialogOpen(false)}
+            >
+              Keep it
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleCancelPurchase}
+              disabled={deletePurchaseMutation.isPending}
+            >
+              {deletePurchaseMutation.isPending
+                ? "Cancelling..."
+                : "Cancel purchase"}
             </Button>
           </DialogFooter>
         </DialogContent>

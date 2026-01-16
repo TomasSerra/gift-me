@@ -21,6 +21,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDeleteFolder, useUpdateFolder, useReorderFolderItems } from "@/hooks/useFolders";
 import { useUserById } from "@/hooks/useUserById";
 import { usePurchases } from "@/hooks/usePurchases";
+import { useFriendshipStatus } from "@/hooks/useFriendshipStatus";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Avatar } from "@/components/ui/avatar";
 import { WishlistGridItem } from "@/components/wishlist/WishlistGridItem";
@@ -114,6 +115,10 @@ export function FolderDetailPage() {
   const { data: owner } = useUserById(folder?.ownerId);
 
   const isOwner = user?.id === folder?.ownerId;
+
+  // Check friendship status
+  const { data: friendshipData } = useFriendshipStatus(user?.id, folder?.ownerId);
+  const isFriend = friendshipData?.status === "friends";
 
   // Load purchases when viewing someone else's folder
   const { purchases } = usePurchases(isOwner ? "" : folder?.ownerId || "");
@@ -277,78 +282,100 @@ export function FolderDetailPage() {
   const shareUrl = `${window.location.origin}/folder/${folderId}`;
 
   const header = (
-    <div className="flex items-center justify-between p-4">
-      <div className="flex items-center gap-2">
-        {user ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => {
-              sessionStorage.setItem("wishlistTab", "folders");
-              navigate(-1);
-            }}
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-        ) : (
-          <Button variant="ghost" size="sm" onClick={() => navigate("/auth")}>
-            <UserPlus className="w-4 h-4 mr-1" />
-            Sign up
-          </Button>
-        )}
-        {isEditing ? (
-          <div className="flex items-center gap-2">
-            <Input
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              className="h-8 w-40"
-              autoFocus
-            />
+    <div className="p-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {user ? (
             <Button
-              size="icon"
               variant="ghost"
-              onClick={handleSaveEdit}
-              disabled={!editName.trim() || updateFolderMutation.isPending}
+              size="icon"
+              onClick={() => {
+                sessionStorage.setItem("wishlistTab", "folders");
+                navigate(-1);
+              }}
             >
-              {updateFolderMutation.isPending ? (
-                <Spinner size="sm" />
-              ) : (
-                <Check className="w-4 h-4" />
-              )}
+              <ArrowLeft className="w-5 h-5" />
             </Button>
-            <Button size="icon" variant="ghost" onClick={handleCancelEdit}>
-              <X className="w-4 h-4" />
+          ) : (
+            <Button variant="ghost" size="sm" onClick={() => navigate("/auth")}>
+              <UserPlus className="w-4 h-4 mr-1" />
+              Sign up
             </Button>
-          </div>
-        ) : (
-          <h1 className="text-lg font-semibold">{folder.name}</h1>
-        )}
-      </div>
-      <div className="flex items-center gap-1">
-        {!isEditing && (
-          <ShareButton url={shareUrl} title={folder.name} />
-        )}
-        {isOwner && !isEditing && (
-          <Popover>
-            <PopoverTrigger>
-              <MoreVertical className="w-5 h-5" />
-            </PopoverTrigger>
-            <PopoverContent>
-              <PopoverItem onClick={handleStartEdit}>
-                <Pencil className="w-4 h-4" />
-                Rename
-              </PopoverItem>
-              <PopoverItem
-                variant="destructive"
-                onClick={() => setDeleteDialogOpen(true)}
+          )}
+          {isEditing ? (
+            <div className="flex items-center gap-2">
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="h-8 w-40"
+                autoFocus
+              />
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={handleSaveEdit}
+                disabled={!editName.trim() || updateFolderMutation.isPending}
               >
-                <Trash2 className="w-4 h-4" />
-                Delete
-              </PopoverItem>
-            </PopoverContent>
-          </Popover>
-        )}
+                {updateFolderMutation.isPending ? (
+                  <Spinner size="sm" />
+                ) : (
+                  <Check className="w-4 h-4" />
+                )}
+              </Button>
+              <Button size="icon" variant="ghost" onClick={handleCancelEdit}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          ) : (
+            <h1 className="text-lg font-semibold">{folder.name}</h1>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          {!isEditing && (
+            <ShareButton url={shareUrl} title={folder.name} />
+          )}
+          {isOwner && !isEditing && (
+            <Popover>
+              <PopoverTrigger>
+                <MoreVertical className="w-5 h-5" />
+              </PopoverTrigger>
+              <PopoverContent>
+                <PopoverItem onClick={handleStartEdit}>
+                  <Pencil className="w-4 h-4" />
+                  Rename
+                </PopoverItem>
+                <PopoverItem
+                  variant="destructive"
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </PopoverItem>
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
       </div>
+      {/* Owner info - only show if viewing someone else's folder */}
+      {owner && !isOwner && !isEditing && (
+        <div
+          className="flex items-center gap-2 mt-2 ml-12 cursor-pointer"
+          onClick={() =>
+            navigate(user ? `/friends/${owner.id}` : `/u/${owner.username}`)
+          }
+        >
+          <Avatar
+            id={owner.id}
+            firstName={owner.firstName}
+            lastName={owner.lastName}
+            photoURL={owner.photoURL}
+            size="sm"
+          />
+          <p className="text-sm text-muted-foreground">
+            by <span className="font-medium text-foreground">{ownerName}</span>
+          </p>
+        </div>
+      )}
     </div>
   );
 
@@ -403,6 +430,7 @@ export function FolderDetailPage() {
                   key={item.id}
                   item={item}
                   isOwner={isOwner}
+                  isFriend={isFriend}
                   isReorderMode={isReorderMode}
                   onEdit={() => handleEditItem(item)}
                   purchase={purchasesByItemId[item.id]}
@@ -411,27 +439,6 @@ export function FolderDetailPage() {
             </div>
           </SortableContext>
         </DndContext>
-      )}
-
-      {/* Owner info - only show if viewing someone else's folder */}
-      {owner && !isOwner && (
-        <div
-          className="flex items-center gap-3 pt-4 mt-4 border-t cursor-pointer"
-          onClick={() =>
-            navigate(user ? `/friends/${owner.id}` : `/u/${owner.username}`)
-          }
-        >
-          <Avatar
-            id={owner.id}
-            firstName={owner.firstName}
-            lastName={owner.lastName}
-            photoURL={owner.photoURL}
-          />
-          <div>
-            <p className="text-sm text-muted-foreground">Folder by</p>
-            <p className="font-medium">{ownerName}</p>
-          </div>
-        </div>
       )}
 
       {/* Delete confirmation dialog */}

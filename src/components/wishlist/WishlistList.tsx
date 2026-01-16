@@ -38,9 +38,10 @@ type TabMode = "products" | "folders";
 interface WishlistListProps {
   userId: string;
   isOwner?: boolean;
+  isFriend?: boolean;
 }
 
-export function WishlistList({ userId, isOwner = false }: WishlistListProps) {
+export function WishlistList({ userId, isOwner = false, isFriend = false }: WishlistListProps) {
   const { items, loading } = useWishlist(userId);
   const reorderMutation = useReorderWishlist(userId);
 
@@ -284,6 +285,7 @@ export function WishlistList({ userId, isOwner = false }: WishlistListProps) {
                       key={item.id}
                       item={item}
                       isOwner={isOwner}
+                      isFriend={isFriend}
                       isReorderMode={isReorderMode}
                       onEdit={() => handleEdit(item)}
                       purchase={purchasesByItemId[item.id]}

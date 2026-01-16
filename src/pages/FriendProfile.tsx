@@ -224,19 +224,10 @@ export function FriendProfilePage() {
         {renderActionButton()}
       </div>
 
-      {/* Wishlist only visible if friends */}
-      {effectiveStatus === "friends" ? (
-        <div className="px-4">
-          <WishlistList userId={user.id} isOwner={false} />
-        </div>
-      ) : (
-        <div className="px-4 py-8 text-center">
-          <p className="text-muted-foreground">
-            Add {user.firstName || user.username} as a friend to see their
-            wishlist
-          </p>
-        </div>
-      )}
+      {/* Wishlist visible to everyone */}
+      <div className="px-4">
+        <WishlistList userId={user.id} isOwner={false} isFriend={effectiveStatus === "friends"} />
+      </div>
 
       {/* Remove friend dialog */}
       <Dialog open={removeDialogOpen} onOpenChange={setRemoveDialogOpen}>

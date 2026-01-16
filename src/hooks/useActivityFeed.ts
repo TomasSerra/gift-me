@@ -7,6 +7,7 @@ import {
   limit,
   getDocs,
   startAfter,
+  onSnapshot,
   type QueryDocumentSnapshot,
   type DocumentData,
 } from "firebase/firestore";
@@ -15,7 +16,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFriends } from "./useFriends";
 import { queryKeys } from "@/lib/queryKeys";
-import type { ActivityItem, User } from "@/types";
+import type { ActivityItem, User, Purchase } from "@/types";
 
 export interface ActivityWithUser extends ActivityItem {
   user: User;
@@ -80,8 +81,32 @@ async function fetchActivityPage(
 export function useActivityFeed() {
   const { user } = useAuth();
   const { friends, loading: friendsLoading } = useFriends();
+  const [purchasedItemIds, setPurchasedItemIds] = useState<Set<string>>(new Set());
 
   const friendIds = friends.map((f) => f.id);
+
+  // Subscribe to purchases from all friends to filter out purchased items
+  useEffect(() => {
+    if (friendIds.length === 0) {
+      setPurchasedItemIds(new Set());
+      return;
+    }
+
+    // Firestore "in" query limited to 10 items
+    const limitedFriendIds = friendIds.slice(0, 10);
+
+    const q = query(
+      collection(db, "purchases"),
+      where("itemOwnerId", "in", limitedFriendIds)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const ids = new Set(snapshot.docs.map((doc) => (doc.data() as Purchase).itemId));
+      setPurchasedItemIds(ids);
+    });
+
+    return () => unsubscribe();
+  }, [friendIds.join(",")]);
 
   const {
     data,
@@ -99,7 +124,11 @@ export function useActivityFeed() {
     enabled: !!user && friends.length > 0,
   });
 
-  const activities = data?.pages.flatMap((page) => page.activities) || [];
+  // Filter out activities for items that have been purchased
+  const allActivities = data?.pages.flatMap((page) => page.activities) || [];
+  const activities = allActivities.filter(
+    (activity) => !purchasedItemIds.has(activity.wishlistItemId)
+  );
   const loading = isLoading || friendsLoading;
 
   return {

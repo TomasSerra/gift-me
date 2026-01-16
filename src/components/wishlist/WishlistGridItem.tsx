@@ -40,6 +40,7 @@ import { Spinner } from "../ui/spinner";
 interface WishlistGridItemProps {
   item: WishlistItem;
   isOwner?: boolean;
+  isFriend?: boolean;
   isReorderMode?: boolean;
   onEdit?: () => void;
   purchase?: Purchase;
@@ -48,6 +49,7 @@ interface WishlistGridItemProps {
 export function WishlistGridItem({
   item,
   isOwner = false,
+  isFriend = false,
   isReorderMode = false,
   onEdit,
   purchase,
@@ -136,14 +138,14 @@ export function WishlistGridItem({
                 alt={item.name}
                 className={cn(
                   "w-full h-full object-cover transition-opacity",
-                  isPurchased && user && "opacity-50"
+                  isPurchased && "opacity-50"
                 )}
               />
             ) : (
               <div
                 className={cn(
                   "w-full h-full flex items-center justify-center bg-gray-700",
-                  isPurchased && !isPurchasedByMe && user && "opacity-50"
+                  isPurchased && "opacity-50"
                 )}
               >
                 <Gift size={50} className="text-gray-500" />
@@ -158,20 +160,22 @@ export function WishlistGridItem({
             )}
 
             {/* Purchased badge - centered on image */}
-            {isPurchased && !isOwner && user && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            {isPurchased && !isOwner && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-3">
                 <div
                   className={cn(
-                    "text-xs font-semibold px-3 py-2 rounded-sm shadow-lg flex items-center gap-2",
+                    "text-xs font-semibold px-3 py-2 rounded-sm shadow-lg flex items-center gap-2 max-w-full text-left",
                     isPurchasedByMe
                       ? "bg-primary/80 text-primary-foreground"
                       : "bg-slate-700/90 text-slate-100"
                   )}
                 >
-                  {isPurchasedByMe
-                    ? "You bought this"
-                    : `Bought by ${purchase.buyerName}`}
-                  <Check size={14} />
+                  <span className="line-clamp-2">
+                    {isPurchasedByMe
+                      ? "You bought this"
+                      : `Bought by ${purchase.buyerName}`}
+                  </span>
+                  <Check size={14} className="shrink-0" />
                 </div>
               </div>
             )}
@@ -230,8 +234,8 @@ export function WishlistGridItem({
             </p>
           )}
 
-          {/* Purchase actions - only shown when viewing friend's wishlist (and logged in) */}
-          {!isOwner && !isReorderMode && user && (
+          {/* Purchase actions - only shown when viewing friend's wishlist (and logged in as friend) */}
+          {!isOwner && !isReorderMode && user && isFriend && (
             <div className="mt-auto pt-2" onClick={(e) => e.stopPropagation()}>
               {!isPurchased ? (
                 <Button
