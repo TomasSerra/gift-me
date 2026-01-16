@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { doc, onSnapshot, query, collection, where } from "firebase/firestore";
 import {
@@ -20,6 +20,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDeleteFolder, useUpdateFolder, useReorderFolderItems } from "@/hooks/useFolders";
 import { useUserById } from "@/hooks/useUserById";
+import { usePurchases } from "@/hooks/usePurchases";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Avatar } from "@/components/ui/avatar";
 import { WishlistGridItem } from "@/components/wishlist/WishlistGridItem";
@@ -54,7 +55,7 @@ import {
   UserPlus,
   ArrowUpDown,
 } from "lucide-react";
-import type { Folder, WishlistItem } from "@/types";
+import type { Folder, WishlistItem, Purchase } from "@/types";
 
 export function FolderDetailPage() {
   const { folderId } = useParams<{ folderId: string }>();
@@ -114,6 +115,18 @@ export function FolderDetailPage() {
 
   const isOwner = user?.id === folder?.ownerId;
 
+  // Load purchases when viewing someone else's folder
+  const { purchases } = usePurchases(isOwner ? "" : folder?.ownerId || "");
+
+  // Create a map for quick lookup of purchases by itemId
+  const purchasesByItemId = purchases.reduce(
+    (acc, purchase) => {
+      acc[purchase.itemId] = purchase;
+      return acc;
+    },
+    {} as Record<string, Purchase>
+  );
+
   const ownerName = owner
     ? owner.firstName || owner.lastName
       ? `${owner.firstName || ""} ${owner.lastName || ""}`.trim()
@@ -138,7 +151,7 @@ export function FolderDetailPage() {
 
   // Fetch items in this folder
   useEffect(() => {
-    if (!folderId || !folder) return;
+    if (!folderId || !folder?.ownerId) return;
 
     const q = query(
       collection(db, "wishlistItems"),
@@ -152,21 +165,24 @@ export function FolderDetailPage() {
         ...doc.data(),
       })) as WishlistItem[];
 
-      // Sort items based on folder.itemOrder
-      if (folder.itemOrder && folder.itemOrder.length > 0) {
-        const orderMap = new Map(folder.itemOrder.map((id, index) => [id, index]));
-        newItems.sort((a, b) => {
-          const orderA = orderMap.get(a.id) ?? Infinity;
-          const orderB = orderMap.get(b.id) ?? Infinity;
-          return orderA - orderB;
-        });
-      }
-
       setItems(newItems);
     });
 
     return () => unsubscribe();
-  }, [folderId, folder]);
+  }, [folderId, folder?.ownerId]);
+
+  // Sort items based on folder.itemOrder (separate from fetch to avoid stale closure)
+  const sortedItems = useMemo(() => {
+    if (!folder?.itemOrder || folder.itemOrder.length === 0) {
+      return items;
+    }
+    const orderMap = new Map(folder.itemOrder.map((id, index) => [id, index]));
+    return [...items].sort((a, b) => {
+      const orderA = orderMap.get(a.id) ?? Infinity;
+      const orderB = orderMap.get(b.id) ?? Infinity;
+      return orderA - orderB;
+    });
+  }, [items, folder?.itemOrder]);
 
   const handleDragStart = () => {
     setIsDragging(true);
@@ -177,14 +193,13 @@ export function FolderDetailPage() {
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
-      const oldIndex = items.findIndex((item) => item.id === active.id);
-      const newIndex = items.findIndex((item) => item.id === over.id);
+      const oldIndex = sortedItems.findIndex((item) => item.id === active.id);
+      const newIndex = sortedItems.findIndex((item) => item.id === over.id);
 
       if (oldIndex !== -1 && newIndex !== -1) {
-        const newItems = [...items];
+        const newItems = [...sortedItems];
         const [movedItem] = newItems.splice(oldIndex, 1);
         newItems.splice(newIndex, 0, movedItem);
-        setItems(newItems);
         reorderMutation.mutate(newItems.map((item) => item.id));
       }
     }
@@ -340,7 +355,7 @@ export function FolderDetailPage() {
   return (
     <PageContainer header={header}>
       {/* Reorder button row */}
-      {isOwner && items.length > 1 && (
+      {isOwner && sortedItems.length > 1 && (
         <div className="flex justify-end mb-4">
           {isReorderMode ? (
             <Button onClick={() => setIsReorderMode(false)}>
@@ -360,7 +375,7 @@ export function FolderDetailPage() {
         </div>
       )}
 
-      {items.length === 0 ? (
+      {sortedItems.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <FolderOpen className="w-12 h-12 text-muted-foreground mb-4" />
           <h2 className="text-lg font-semibold">Empty folder</h2>
@@ -378,18 +393,19 @@ export function FolderDetailPage() {
           onDragEnd={handleDragEnd}
         >
           <SortableContext
-            items={items.map((item) => item.id)}
+            items={sortedItems.map((item) => item.id)}
             strategy={rectSortingStrategy}
             disabled={!isReorderMode}
           >
             <div className="grid grid-cols-2 gap-3">
-              {items.map((item) => (
+              {sortedItems.map((item) => (
                 <WishlistGridItem
                   key={item.id}
                   item={item}
                   isOwner={isOwner}
                   isReorderMode={isReorderMode}
                   onEdit={() => handleEditItem(item)}
+                  purchase={purchasesByItemId[item.id]}
                 />
               ))}
             </div>

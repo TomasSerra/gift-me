@@ -106,7 +106,7 @@ export function HomePage() {
       {/* Floating Action Button */}
       <button
         onClick={() => setFormOpen(true)}
-        className="fixed right-4 bottom-32 z-50 w-16 h-16 bg-primary text-primary-foreground rounded-full shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-90 transition-transform duration-150"
+        className="fixed right-4 bottom-32 z-40 w-16 h-16 bg-primary text-primary-foreground rounded-full shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-90 transition-transform duration-150"
       >
         <Plus className="w-7 h-7" strokeWidth={2.5} />
       </button>

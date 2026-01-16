@@ -16,8 +16,8 @@ export function EventCarousel() {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 px-4">
-        <Calendar className="w-5 h-5 text-primary" />
+      <div className="flex items-center gap-2 px-4 mb-4">
+        <Calendar size={16} className="text-white" />
         <h2 className="font-semibold">Upcoming Events</h2>
       </div>
 
@@ -26,7 +26,7 @@ export function EventCarousel() {
           {birthdays.map((birthday) => (
             <Card
               key={birthday.user.id}
-              className="flex-shrink-0 w-40 cursor-pointer hover:shadow-md transition-shadow"
+              className="shrink-0 w-40 cursor-pointer hover:shadow-md transition-shadow"
               onClick={() => navigate(`/friends/${birthday.user.id}`)}
             >
               <CardContent className="p-4 flex flex-col items-center text-center">
@@ -44,7 +44,11 @@ export function EventCarousel() {
                 </div>
 
                 <p className="font-medium mt-3 truncate w-full">
-                  {birthday.user.firstName ? `${birthday.user.firstName} ${birthday.user.lastName || ""}`.trim() : birthday.user.username}
+                  {birthday.user.firstName
+                    ? `${birthday.user.firstName} ${
+                        birthday.user.lastName || ""
+                      }`.trim()
+                    : birthday.user.username}
                 </p>
 
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -56,8 +60,8 @@ export function EventCarousel() {
                   {birthday.daysUntil === 0
                     ? "Today!"
                     : birthday.daysUntil === 1
-                      ? "Tomorrow!"
-                      : `In ${birthday.daysUntil} days`}
+                    ? "Tomorrow!"
+                    : `In ${birthday.daysUntil} days`}
                 </p>
               </CardContent>
             </Card>

@@ -21,9 +21,27 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { WishlistForm } from "@/components/wishlist/WishlistForm";
 import { ShareButton } from "@/components/ui/share-button";
-import { ArrowLeft, ExternalLink, ChevronLeft, ChevronRight, Pencil, Trash2, UserPlus, MoreVertical, FolderOpen } from "lucide-react";
+import {
+  ArrowLeft,
+  ExternalLink,
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  Trash2,
+  UserPlus,
+  MoreVertical,
+  FolderOpen,
+  Eye,
+  Gift,
+} from "lucide-react";
 import {
   Popover,
   PopoverTrigger,
@@ -39,6 +57,15 @@ async function fetchWishlistItem(itemId: string): Promise<WishlistItem | null> {
   return { id: itemDoc.id, ...itemDoc.data() } as WishlistItem;
 }
 
+const getFaviconUrl = (url: string): string | null => {
+  try {
+    const urlObj = new URL(url);
+    return `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=32`;
+  } catch {
+    return null;
+  }
+};
+
 export function WishlistItemDetailPage() {
   const { itemId } = useParams<{ itemId: string }>();
   const navigate = useNavigate();
@@ -49,13 +76,19 @@ export function WishlistItemDetailPage() {
   const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
   const [editFormOpen, setEditFormOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [linksSheetOpen, setLinksSheetOpen] = useState(false);
+  const [faviconErrors, setFaviconErrors] = useState<Set<number>>(new Set());
 
   // Try to get cached item first
   const cachedItem = queryClient.getQueryData<WishlistItem>(
     queryKeys.wishlist.item(itemId || "")
   );
 
-  const { data: item, isLoading: loading, refetch } = useQuery({
+  const {
+    data: item,
+    isLoading: loading,
+    refetch,
+  } = useQuery({
     queryKey: queryKeys.wishlist.item(itemId || ""),
     queryFn: () => fetchWishlistItem(itemId!),
     enabled: !!itemId,
@@ -70,8 +103,8 @@ export function WishlistItemDetailPage() {
   const { folders } = useFolders(item?.ownerId || "");
 
   // Get folders this item belongs to
-  const itemFolders = folders.filter(
-    (folder) => item?.folderIds?.includes(folder.id)
+  const itemFolders = folders.filter((folder) =>
+    item?.folderIds?.includes(folder.id)
   );
 
   const isOwner = currentUser?.id === item?.ownerId;
@@ -79,7 +112,8 @@ export function WishlistItemDetailPage() {
   const images = item?.images || [];
   const hasMultipleImages = images.length > 1;
   const currentImage = images[currentImageIndex];
-  const isImageLoading = images.length > 0 && currentImage && !loadedImages.has(currentImage);
+  const isImageLoading =
+    images.length > 0 && currentImage && !loadedImages.has(currentImage);
 
   const handleImageLoad = () => {
     if (currentImage) {
@@ -135,6 +169,17 @@ export function WishlistItemDetailPage() {
   };
 
   const shareUrl = `${window.location.origin}/item/${itemId}`;
+
+  // Support both new links array and legacy link field
+  const links = item?.links?.length
+    ? item.links
+    : item?.link
+    ? [item.link]
+    : [];
+  const hasLinks = links.length > 0;
+  const hasMultipleLinks = links.length > 1;
+  const firstLink = links[0];
+  const firstFaviconUrl = firstLink ? getFaviconUrl(firstLink) : null;
 
   const header = (
     <div className="flex items-center gap-3 p-4">
@@ -202,7 +247,11 @@ export function WishlistItemDetailPage() {
       <PageContainer header={header}>
         <div className="flex flex-col items-center justify-center py-12">
           <p className="text-muted-foreground">Item not found</p>
-          <Button variant="outline" className="mt-4" onClick={() => navigate(-1)}>
+          <Button
+            variant="outline"
+            className="mt-4"
+            onClick={() => navigate(-1)}
+          >
             Go Back
           </Button>
         </div>
@@ -220,7 +269,10 @@ export function WishlistItemDetailPage() {
             <img
               src={currentImage}
               alt={`${item.name} - Image ${currentImageIndex + 1}`}
-              className={cn("w-full h-full object-contain", isImageLoading && "opacity-0")}
+              className={cn(
+                "w-full h-full object-contain",
+                isImageLoading && "opacity-0"
+              )}
               onLoad={handleImageLoad}
             />
           </div>
@@ -264,7 +316,7 @@ export function WishlistItemDetailPage() {
         </div>
       ) : (
         <div className="aspect-square bg-muted flex items-center justify-center">
-          <span className="text-6xl">🎁</span>
+          <Gift size={50} className="text-muted-foreground" />
         </div>
       )}
 
@@ -280,7 +332,9 @@ export function WishlistItemDetailPage() {
         </div>
 
         {item.description && (
-          <p className="text-muted-foreground whitespace-pre-line">{item.description}</p>
+          <p className="text-muted-foreground whitespace-pre-line">
+            {item.description}
+          </p>
         )}
 
         {/* Folder badges */}
@@ -299,18 +353,38 @@ export function WishlistItemDetailPage() {
           </div>
         )}
 
-        {item.link && (
-          <a
-            href={item.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block"
-          >
-            <Button variant="outline" className="gap-2">
-              <ExternalLink className="w-4 h-4" />
-              View product link
+        {hasLinks && (
+          hasMultipleLinks ? (
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => setLinksSheetOpen(true)}
+            >
+              <Eye className="w-4 h-4" />
+              View {links.length} product links
             </Button>
-          </a>
+          ) : (
+            <a
+              href={firstLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block"
+            >
+              <Button variant="outline" className="gap-2">
+                {firstFaviconUrl && !faviconErrors.has(0) ? (
+                  <img
+                    src={firstFaviconUrl}
+                    alt=""
+                    className="w-4 h-4 rounded-sm bg-white"
+                    onError={() => setFaviconErrors((prev) => new Set(prev).add(0))}
+                  />
+                ) : (
+                  <ExternalLink className="w-4 h-4" />
+                )}
+                View product website
+              </Button>
+            </a>
+          )
         )}
 
         {/* Owner info - only show if viewing someone else's item */}
@@ -318,7 +392,9 @@ export function WishlistItemDetailPage() {
           <div
             className="flex items-center gap-3 pt-4 border-t cursor-pointer"
             onClick={() =>
-              navigate(currentUser ? `/friends/${owner.id}` : `/u/${owner.username}`)
+              navigate(
+                currentUser ? `/friends/${owner.id}` : `/u/${owner.username}`
+              )
             }
           >
             <Avatar
@@ -328,7 +404,9 @@ export function WishlistItemDetailPage() {
               photoURL={owner.photoURL}
             />
             <div>
-              <p className="text-sm text-muted-foreground">From the wishlist of</p>
+              <p className="text-sm text-muted-foreground">
+                From the wishlist of
+              </p>
               <p className="font-medium">{ownerName}</p>
             </div>
           </div>
@@ -356,7 +434,10 @@ export function WishlistItemDetailPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+            >
               Cancel
             </Button>
             <Button
@@ -369,6 +450,49 @@ export function WishlistItemDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Links sheet for multiple links */}
+      <Sheet open={linksSheetOpen} onOpenChange={setLinksSheetOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Product Links</SheetTitle>
+          </SheetHeader>
+          <div className="flex flex-col gap-3 mt-4">
+            {links.map((link, index) => {
+              const faviconUrl = getFaviconUrl(link);
+              const hostname = (() => {
+                try {
+                  return new URL(link).hostname.replace("www.", "");
+                } catch {
+                  return link;
+                }
+              })();
+              return (
+                <a
+                  key={index}
+                  href={link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted transition-colors"
+                >
+                  {faviconUrl && !faviconErrors.has(index) ? (
+                    <img
+                      src={faviconUrl}
+                      alt=""
+                      className="w-6 h-6 rounded bg-white"
+                      onError={() => setFaviconErrors((prev) => new Set(prev).add(index))}
+                    />
+                  ) : (
+                    <ExternalLink className="w-6 h-6 text-muted-foreground" />
+                  )}
+                  <span className="flex-1 truncate text-sm">{hostname}</span>
+                  <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                </a>
+              );
+            })}
+          </div>
+        </SheetContent>
+      </Sheet>
     </PageContainer>
   );
 }

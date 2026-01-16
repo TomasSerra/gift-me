@@ -4,13 +4,16 @@ import { useActivityFeed } from "@/hooks/useActivityFeed";
 import { ActivityCard } from "./ActivityCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { Inbox, Users } from "lucide-react";
+import { Clock, Inbox, Users } from "lucide-react";
 import { useFriends } from "@/hooks/useFriends";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
 interface ActivityFeedProps {
-  onRefetchReady?: (refetch: () => Promise<unknown>, isRefetching: boolean) => void;
+  onRefetchReady?: (
+    refetch: () => Promise<unknown>,
+    isRefetching: boolean
+  ) => void;
 }
 
 export function ActivityFeed({ onRefetchReady }: ActivityFeedProps) {
@@ -104,7 +107,10 @@ export function ActivityFeed({ onRefetchReady }: ActivityFeedProps) {
 
   return (
     <div className="flex flex-col gap-2">
-      <h2 className="font-semibold px-4 mb-3">Recent Activity</h2>
+      <div className="flex items-center gap-2 px-4 mb-2">
+        <Clock size={16} className="text-white" />
+        <h2 className="font-semibold">Recent Activity</h2>
+      </div>
       {activities.map((activity) => (
         <ActivityCard key={activity.id} activity={activity} />
       ))}

@@ -15,6 +15,7 @@ import {
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
 import { useWishlist, useReorderWishlist } from "@/hooks/useWishlist";
+import { usePurchases } from "@/hooks/usePurchases";
 import { WishlistGridItem } from "./WishlistGridItem";
 import { WishlistForm } from "./WishlistForm";
 import { FoldersGrid } from "./FoldersGrid";
@@ -29,7 +30,7 @@ import {
   Check,
   FolderPlus,
 } from "lucide-react";
-import type { WishlistItem } from "@/types";
+import type { WishlistItem, Purchase } from "@/types";
 import { cn } from "@/lib/utils";
 
 type TabMode = "products" | "folders";
@@ -42,6 +43,18 @@ interface WishlistListProps {
 export function WishlistList({ userId, isOwner = false }: WishlistListProps) {
   const { items, loading } = useWishlist(userId);
   const reorderMutation = useReorderWishlist(userId);
+
+  // Load purchases when viewing someone else's wishlist
+  const { purchases } = usePurchases(isOwner ? "" : userId);
+
+  // Create a map for quick lookup of purchases by itemId
+  const purchasesByItemId = purchases.reduce(
+    (acc, purchase) => {
+      acc[purchase.itemId] = purchase;
+      return acc;
+    },
+    {} as Record<string, Purchase>
+  );
   const [formOpen, setFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<WishlistItem | null>(null);
 
@@ -273,6 +286,7 @@ export function WishlistList({ userId, isOwner = false }: WishlistListProps) {
                       isOwner={isOwner}
                       isReorderMode={isReorderMode}
                       onEdit={() => handleEdit(item)}
+                      purchase={purchasesByItemId[item.id]}
                     />
                   ))}
                 </div>

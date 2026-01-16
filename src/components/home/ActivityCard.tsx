@@ -4,10 +4,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { formatRelativeTime, formatPrice, cn } from "@/lib/utils";
 import type { ActivityWithUser } from "@/hooks/useActivityFeed";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, Gift, Eye } from "lucide-react";
 
 const getFaviconUrl = (url: string): string | null => {
   try {
@@ -27,15 +33,26 @@ export function ActivityCard({ activity }: ActivityCardProps) {
   const createdAt = activity.createdAt?.toDate() || new Date();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
-  const [faviconError, setFaviconError] = useState(false);
-  const faviconUrl = activity.itemLink ? getFaviconUrl(activity.itemLink) : null;
+  const [faviconErrors, setFaviconErrors] = useState<Set<number>>(new Set());
+  const [linksSheetOpen, setLinksSheetOpen] = useState(false);
+
+  // Support both new itemLinks array and legacy itemLink field
+  const links = activity.itemLinks?.length
+    ? activity.itemLinks
+    : activity.itemLink
+    ? [activity.itemLink]
+    : [];
+  const hasLinks = links.length > 0;
+  const hasMultipleLinks = links.length > 1;
+  const firstLink = links[0];
+  const firstFaviconUrl = firstLink ? getFaviconUrl(firstLink) : null;
 
   // Support both new itemImages array and legacy itemImage field
   const images = activity.itemImages?.length
     ? activity.itemImages
     : (activity as ActivityWithUser & { itemImage?: string }).itemImage
-      ? [(activity as ActivityWithUser & { itemImage?: string }).itemImage!]
-      : [];
+    ? [(activity as ActivityWithUser & { itemImage?: string }).itemImage!]
+    : [];
   const hasImages = images.length > 0;
   const hasMultipleImages = images.length > 1;
 
@@ -94,7 +111,9 @@ export function ActivityCard({ activity }: ActivityCardProps) {
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-sm truncate">
             {activity.user.firstName
-              ? `${activity.user.firstName} ${activity.user.lastName || ""}`.trim()
+              ? `${activity.user.firstName} ${
+                  activity.user.lastName || ""
+                }`.trim()
               : activity.user.username}
           </p>
           <p className="text-xs text-muted-foreground">
@@ -115,7 +134,10 @@ export function ActivityCard({ activity }: ActivityCardProps) {
             <img
               src={currentImage}
               alt={activity.itemName}
-              className={cn("w-full h-full object-cover", isImageLoading && "opacity-0")}
+              className={cn(
+                "w-full h-full object-cover",
+                isImageLoading && "opacity-0"
+              )}
               onLoad={handleImageLoad}
             />
           </div>
@@ -150,9 +172,7 @@ export function ActivityCard({ activity }: ActivityCardProps) {
                     }}
                     className={cn(
                       "w-1.5 h-1.5 rounded-full transition-all",
-                      index === currentImageIndex
-                        ? "bg-white"
-                        : "bg-white/50"
+                      index === currentImageIndex ? "bg-white" : "bg-white/50"
                     )}
                   />
                 ))}
@@ -165,7 +185,7 @@ export function ActivityCard({ activity }: ActivityCardProps) {
           className="aspect-square bg-muted flex items-center justify-center cursor-pointer"
           onClick={handleItemClick}
         >
-          <span className="text-6xl">🎁</span>
+          <Gift size={50} className="text-muted-foreground" />
         </div>
       )}
 
@@ -190,29 +210,87 @@ export function ActivityCard({ activity }: ActivityCardProps) {
           )}
         </div>
 
-        {activity.itemLink && (
-          <a
-            href={activity.itemLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Button variant="outline" size="sm" className="w-full gap-2">
-              {faviconUrl && !faviconError ? (
-                <img
-                  src={faviconUrl}
-                  alt=""
-                  className="w-4 h-4 rounded-sm"
-                  onError={() => setFaviconError(true)}
-                />
-              ) : (
-                <ExternalLink className="w-4 h-4" />
-              )}
-              View product
+        {hasLinks && (
+          hasMultipleLinks ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-2"
+              onClick={(e) => {
+                e.stopPropagation();
+                setLinksSheetOpen(true);
+              }}
+            >
+              <Eye className="w-4 h-4" />
+              View {links.length} product links
             </Button>
-          </a>
+          ) : (
+            <a
+              href={firstLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Button variant="outline" size="sm" className="w-full gap-2">
+                {firstFaviconUrl && !faviconErrors.has(0) ? (
+                  <img
+                    src={firstFaviconUrl}
+                    alt=""
+                    className="w-4 h-4 rounded-sm bg-white"
+                    onError={() => setFaviconErrors((prev) => new Set(prev).add(0))}
+                  />
+                ) : (
+                  <ExternalLink className="w-4 h-4" />
+                )}
+                View product website
+              </Button>
+            </a>
+          )
         )}
       </CardContent>
+
+      {/* Links sheet for multiple links */}
+      <Sheet open={linksSheetOpen} onOpenChange={setLinksSheetOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Product Links</SheetTitle>
+          </SheetHeader>
+          <div className="flex flex-col gap-3 mt-4">
+            {links.map((link, index) => {
+              const faviconUrl = getFaviconUrl(link);
+              const hostname = (() => {
+                try {
+                  return new URL(link).hostname.replace("www.", "");
+                } catch {
+                  return link;
+                }
+              })();
+              return (
+                <a
+                  key={index}
+                  href={link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted transition-colors"
+                >
+                  {faviconUrl && !faviconErrors.has(index) ? (
+                    <img
+                      src={faviconUrl}
+                      alt=""
+                      className="w-6 h-6 rounded bg-white"
+                      onError={() => setFaviconErrors((prev) => new Set(prev).add(index))}
+                    />
+                  ) : (
+                    <ExternalLink className="w-6 h-6 text-muted-foreground" />
+                  )}
+                  <span className="flex-1 truncate text-sm">{hostname}</span>
+                  <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                </a>
+              );
+            })}
+          </div>
+        </SheetContent>
+      </Sheet>
     </Card>
   );
 }

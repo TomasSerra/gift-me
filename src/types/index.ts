@@ -21,7 +21,8 @@ export interface WishlistItem {
   price?: number;
   currency?: Currency;
   description?: string;
-  link?: string;
+  link?: string; // deprecated, use links instead
+  links?: string[];
   priority: number;
   folderIds?: string[];
   createdAt: Timestamp;
@@ -61,11 +62,21 @@ export interface ActivityItem {
   itemImages?: string[];
   itemPrice?: number;
   itemCurrency?: Currency;
-  itemLink?: string;
+  itemLink?: string; // deprecated, use itemLinks instead
+  itemLinks?: string[];
   createdAt: Timestamp;
 }
 
 export interface UserWithFriendship extends User {
   friendshipStatus?: "none" | "friends" | "pending_sent" | "pending_received";
   requestId?: string;
+}
+
+export interface Purchase {
+  id: string;
+  itemId: string;
+  itemOwnerId: string;
+  buyerId: string;
+  buyerName: string;
+  createdAt: Timestamp;
 }

@@ -1,5 +1,4 @@
 import * as React from "react";
-import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface DialogContextValue {
@@ -103,13 +102,6 @@ const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
             onClick={(e) => e.stopPropagation()}
             {...props}
           >
-            <button
-              onClick={() => setOpen(false)}
-              className="absolute right-4 top-4 rounded-full p-2 opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <X className="h-5 w-5" />
-              <span className="sr-only">Close</span>
-            </button>
             {children}
           </div>
         </div>
@@ -166,7 +158,7 @@ const DialogFooter = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 mt-4",
+      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 mt-4 [&>button]:h-12 [&>button]:text-base",
       className
     )}
     {...props}

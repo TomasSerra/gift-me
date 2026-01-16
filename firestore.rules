@@ -85,5 +85,18 @@ service cloud.firestore {
       allow delete: if isAuthenticated() &&
         resource.data.userId == request.auth.uid; // Owner can delete their activities
     }
+
+    match /purchases/{purchaseId} {
+      // Read: only friends can see, NOT the item owner (to keep gifts secret)
+      allow read: if isAuthenticated() &&
+        resource.data.itemOwnerId != request.auth.uid;
+      // Create: must be authenticated, be the buyer, not buying for yourself
+      allow create: if isAuthenticated() &&
+        request.resource.data.buyerId == request.auth.uid &&
+        request.resource.data.itemOwnerId != request.auth.uid;
+      // Delete: only the buyer can cancel their purchase
+      allow delete: if isAuthenticated() &&
+        resource.data.buyerId == request.auth.uid;
+    }
   }
 }

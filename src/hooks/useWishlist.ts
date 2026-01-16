@@ -28,7 +28,7 @@ interface CreateWishlistItemData {
   price?: number;
   currency?: Currency;
   description?: string;
-  link?: string;
+  links?: string[];
   folderIds?: string[];
 }
 
@@ -93,7 +93,7 @@ export function useCreateWishlistItem(userId: string) {
         price: data.price || null,
         currency: data.currency || null,
         description: data.description || null,
-        link: data.link || null,
+        links: data.links || [],
         folderIds: data.folderIds || [],
         priority,
         createdAt: serverTimestamp(),
@@ -112,7 +112,7 @@ export function useCreateWishlistItem(userId: string) {
         itemImages: data.images || [],
         itemPrice: data.price || null,
         itemCurrency: data.currency || null,
-        itemLink: data.link || null,
+        itemLinks: data.links || [],
         createdAt: serverTimestamp(),
       });
 
@@ -172,7 +172,7 @@ export function useUpdateWishlistItem() {
           if (data.images !== undefined) activityUpdateData.itemImages = data.images || [];
           if (data.price !== undefined) activityUpdateData.itemPrice = data.price || null;
           if (data.currency !== undefined) activityUpdateData.itemCurrency = data.currency || null;
-          if (data.link !== undefined) activityUpdateData.itemLink = data.link || null;
+          if (data.links !== undefined) activityUpdateData.itemLinks = data.links || [];
 
           if (Object.keys(activityUpdateData).length > 0) {
             await updateDoc(doc(db, "activity", relatedActivity.id), activityUpdateData);
@@ -240,6 +240,24 @@ export function useDeleteWishlistItem() {
         }
       } catch (error) {
         console.warn("Could not delete activity entries:", error);
+      }
+
+      // Try to delete related purchase entries (don't fail if this doesn't work)
+      try {
+        const purchaseQuery = query(
+          collection(db, "purchases"),
+          where("itemId", "==", itemId)
+        );
+        const purchaseSnapshot = await getDocs(purchaseQuery);
+
+        if (!purchaseSnapshot.empty) {
+          const deletePurchasePromises = purchaseSnapshot.docs.map((purchaseDoc) =>
+            deleteDoc(doc(db, "purchases", purchaseDoc.id))
+          );
+          await Promise.all(deletePurchasePromises);
+        }
+      } catch (error) {
+        console.warn("Could not delete purchase entries:", error);
       }
     },
     onSuccess: () => {

@@ -111,18 +111,10 @@ export function EditProfileSheet({
             {...register("birthday")}
           />
 
-          <div className="flex gap-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
+          <div className="pt-4">
             <Button
               type="submit"
-              className="flex-1"
+              className="w-full"
               disabled={updateUser.isPending}
             >
               {updateUser.isPending ? (

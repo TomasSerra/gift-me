@@ -22,4 +22,7 @@ export const queryKeys = {
   activity: {
     feed: (userId: string) => ['activity', 'feed', userId] as const,
   },
+  purchases: {
+    byOwner: (itemOwnerId: string) => ['purchases', 'byOwner', itemOwnerId] as const,
+  },
 };
